@@ -1,0 +1,20 @@
+
+# Project files
+db_images/
+
+# Cache files
+*.pyc
+__pycache__
+
+# Large files (ex. videos and images)
+**.avi
+**.mp4
+**.mov
+**.jpg
+**.jpeg
+**.png
+**.log
+**.kra
+**.csv
+**.odp
+

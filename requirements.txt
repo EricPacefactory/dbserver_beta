@@ -1,0 +1,17 @@
+
+# ASGI server + fast web framework
+uvicorn==0.*
+starlette==0.*
+
+# Library needed for file-based server responses
+aiofiles==0.*
+
+# Library used for efficient JSON-based server responses
+ujson==1.*
+
+# Library for GET/POST requests
+requests==2.*
+
+# Library to talk with mongoDB
+pymongo==3.*
+
