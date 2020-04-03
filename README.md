@@ -4,11 +4,15 @@
 
 ## Requirements
 
-No system requirements! Everything is in python. To install, use:
+No system requirements! Everything is in python. However, this server expects a MongoDB database to be running (and accessible through the network) in order to function correctly.
+
+To install, use:
 
 `pip3 install -r requirements`
 
-This should be called from the root project folder. You probably want to use a virtual environment for this, unless installing into docker!
+This should be called from the root project folder. 
+
+You probably want to use a virtual environment for this, unless installing into docker!
 
 ## Usage
 
