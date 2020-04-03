@@ -70,7 +70,7 @@ def get_dbserver_port():
 
 # .....................................................................................................................
 
-def get_debugmode_protocol():
+def get_debugmode():
     return bool(os.environ.get("DEBUG_MODE", True))
 
 

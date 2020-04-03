@@ -45,12 +45,12 @@ WORKDIR $HOME/realtime
 COPY . .
 
 # Run the db server! This is a blocking call...
-CMD uvicorn launch:server --host $DBSERVER_HOST --port $DBSERVER_PORT
+CMD uvicorn launch:asgi_app --host $DBSERVER_HOST --port $DBSERVER_PORT
 
 
 # -----------------------------------------------------------------------------
 # To use manually:
 
 # sudo docker build -t dbserver_image .
-# sudo docker run -d --network="host" -v /tmp/db_images:/db_images --name dbserver_container dbserver_image
+# sudo docker run -d --network="host" -v /tmp/db_images:/home/scv2/db_images --name dbserver_container dbserver_image
 

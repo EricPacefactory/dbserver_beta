@@ -67,6 +67,32 @@ from local.lib.quitters import ide_quit
 
 # .....................................................................................................................
 
+def check_mongo_connection(mongo_client):
+    
+    '''
+    Helper function which checks mongo connection. Also returns the mongo server info (as a dictionary)
+    Inputs:
+        mongo_client: (pymongo.MongoClient object)
+    
+    Outputs:
+        is_connected (boolean), server_info_dict
+    '''
+    
+    # Initialize outputs
+    is_connected = False
+    server_info_dict = {}
+    
+    # Try to make a request from mongo
+    try:
+        server_info_dict = mongo_client.server_info()
+        is_connected = True
+    except pymongo.errors.ServerSelectionTimeoutError:
+        pass
+    
+    return is_connected, server_info_dict
+
+# .....................................................................................................................
+
 def connect_to_mongo(connection_timeout_ms = 4000):
     
     ''' Helper function used to establish a conection to mongoDB '''
@@ -83,9 +109,8 @@ def connect_to_mongo(connection_timeout_ms = 4000):
     mongo_client = pymongo.MongoClient(mongo_url, tz_aware = False, serverSelectionTimeoutMS = connection_timeout_ms)
     
     # Try to force a connection to the database
-    try:
-        mongo_client.server_info()
-    except pymongo.errors.ServerSelectionTimeoutError:
+    is_connected, server_info = check_mongo_connection(mongo_client)
+    if not is_connected:
         print("",
               "ERROR:",
               "Server couldn't connect to database",
