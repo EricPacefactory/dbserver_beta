@@ -11,16 +11,17 @@ Created on Fri Feb  7 17:04:16 2020
 #%% Imports
 
 import os
+import base64
 
-from local.lib.environment import get_debugmode_protocol, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
+from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
 
 from local.lib.timekeeper_utils import time_to_epoch_ms
-from local.lib.mongo_helpers import connect_to_mongo, post_many_to_mongo
+from local.lib.mongo_helpers import check_mongo_connection, connect_to_mongo, post_many_to_mongo
 from local.lib.image_pathing import build_base_image_pathing, build_image_pathing
 from local.lib.quitters import ide_catcher
 
 from starlette.applications import Starlette
-from starlette.responses import FileResponse, UJSONResponse, HTMLResponse
+from starlette.responses import FileResponse, UJSONResponse, HTMLResponse, PlainTextResponse
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_405_METHOD_NOT_ALLOWED
 from starlette.routing import Route
 from starlette.middleware import Middleware
@@ -92,7 +93,7 @@ def post_success_response(success_message = True):
 
 # .....................................................................................................................
 
-def server_startup():
+def asgi_startup():
     pass
 
 # .....................................................................................................................
@@ -135,7 +136,9 @@ def is_alive_check(request):
     
     ''' Route used to check that this server is still up (before making a ton of requests for example) '''
     
-    return UJSONResponse({"connection": True})
+    mongo_is_connected, server_info_dict = check_mongo_connection(mclient)
+    
+    return UJSONResponse({"dbserver": True, "mongo": mongo_is_connected})
 
 # .....................................................................................................................
 
@@ -730,6 +733,30 @@ def get_one_image(data_category):
 
 # .....................................................................................................................
 
+def get_one_b64_jpg(data_category):
+    
+    def inner_get_one_b64_jpg(request):
+        
+        # Get information from route url
+        camera_select = request.path_params["camera_select"]
+        target_ems = request.path_params["epoch_ms"]
+        
+        # Build pathing to the file
+        image_load_path = build_image_pathing(IMAGE_FOLDER, camera_select, data_category, target_ems)
+        if not os.path.exists(image_load_path):
+            error_message = "No image at {}".format(target_ems)
+            return bad_request_response(error_message)
+        
+        # Load the image file and convert to base64
+        with open(image_load_path, "rb") as image_data:
+            b64_image = base64.b64encode(image_data.read())
+        
+        return PlainTextResponse(b64_image)
+    
+    return inner_get_one_b64_jpg
+
+# .....................................................................................................................
+
 # Bundle all snapshot routes
 snap_category = "snapshots"
 snap_url = lambda snap_route: "".join(["/{camera_select:str}/snapshots", snap_route])
@@ -743,7 +770,8 @@ snapshot_routes = \
  Route(snap_url("/get-closest-metadata/by-time-target/{target_time}"), get_closest_metadata_by_time(snap_category)),
  Route(snap_url("/get-one-metadata/by-ems/{epoch_ms:int}"), get_one_metadata(snap_category)),
  Route(snap_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(snap_category)),
- Route(snap_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(snap_category))
+ Route(snap_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(snap_category)),
+ Route(snap_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(snap_category))
 ]
 
 # .....................................................................................................................
@@ -761,7 +789,8 @@ background_routes = \
  Route(bg_url("/get-closest-metadata/by-time-target/{target_time}"), get_closest_metadata_by_time(bg_category)),
  Route(bg_url("/get-one-metadata/by-ems/{epoch_ms:int}"), get_one_metadata(bg_category)),
  Route(bg_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(bg_category)),
- Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(bg_category))
+ Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(bg_category)),
+ Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(bg_category))
 ]
 
 # .....................................................................................................................
@@ -956,7 +985,7 @@ IMAGE_FOLDER = build_base_image_pathing(__file__)
 mclient = connect_to_mongo()
 
 # Setup CORs and gzip responses
-middleware = [Middleware(CORSMiddleware, allow_origins=["*"]),
+middleware = [Middleware(CORSMiddleware, allow_origins = ["*"], allow_methods = ["*"], allow_headers = ["*"]),
               Middleware(GZipMiddleware, minimum_size = 1500)]
 
 # Create the help route
@@ -971,19 +1000,19 @@ help_route_as_list = build_help_route(["Miscellaneous", misc_routes],
 all_routes = post_data_routes + misc_routes + help_route_as_list \
              + camerainfo_routes + background_routes + snapshot_routes + object_routes
 
-# Initialize the server
-enable_debug_mode = get_debugmode_protocol()
-server = Starlette(debug = enable_debug_mode, 
-                   routes = all_routes, 
-                   middleware = middleware, 
-                   on_startup = [server_startup])
+# Initialize the asgi application
+enable_debug_mode = get_debugmode()
+asgi_app = Starlette(debug = enable_debug_mode, 
+                     routes = all_routes, 
+                     middleware = middleware, 
+                     on_startup = [asgi_startup])
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Launch (manually)
 
 # This section of code only runs if using 'python3 launch.py'
-# Better to use: 'uvicorn launch:server --host "0.0.0.0" --port 8050'
+# Better to use: 'uvicorn launch:asgi_app --host "0.0.0.0" --port 8050'
 if __name__ == "__main__":
     
     # Prevent this script from launching the server inside of IDE (spyder)
@@ -996,11 +1025,11 @@ if __name__ == "__main__":
     
     # Get the "filename:varname" command needed by uvicorn
     file_name_only, _ = os.path.splitext(os.path.basename(__file__))
-    server_variable_name = "server"
-    app_command = "{}:{}".format(file_name_only, server_variable_name)
+    asgi_variable_name = "asgi_app"
+    import_command = "{}:{}".format(file_name_only, asgi_variable_name)
     
     # Unleash the server!
-    uvicorn.run(app_command, host = dbserver_host, port = dbserver_port)
+    uvicorn.run(import_command, host = dbserver_host, port = dbserver_port)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
