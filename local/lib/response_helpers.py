@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar 18 15:53:19 2020
+Created on Sat Apr  4 15:07:15 2020
 
 @author: eo
 """
@@ -49,46 +49,62 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+from starlette.responses import UJSONResponse 
+from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_405_METHOD_NOT_ALLOWED
+
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Define classes
+#%% Response functions
 
 # .....................................................................................................................
 
-# .....................................................................................................................
-# .....................................................................................................................
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Define functions
-
-# .....................................................................................................................
-
-def ide_catcher(catch_error_message = "IDE Catcher quit"):
+def first_of_query(query_result, return_if_missing = None):
     
-    ''' Helper function which quits only if we're inside of certain (Spyder) IDEs. Otherwise does NOT quit '''
+    ''' 
+    Helper function for dealing with mongodb queries that are expected to return 1 result in a 'list' format
+    Also handles errors if there is no result
+    '''
     
-    # Check for spyder IDE
-    if any([("spyder" in envkey.lower()) for envkey in os.environ.keys()]): 
-        raise SystemExit(catch_error_message)
+    try:
+        return_result = next(query_result)
+    except StopIteration:
+        return_result = return_if_missing
     
-    return
+    return return_result
 
 # .....................................................................................................................
-        
-def ide_quit(ide_error_message = "IDE Quit", prepend_empty_newlines = 1):
+
+def no_data_response(error_message):
     
-    ''' Helper function which safely handles quitting in terminals or certain (Spyder) IDEs '''
+    ''' Helper function to respond when there is no data '''
     
-    # Print some newlines before quitting, for aesthetic reasons
-    print(*[""] * prepend_empty_newlines, sep = "\n")
-    
-    # Try to quit from IDE catcher first (otherwise use python quit, which is cleaner)
-    ide_catcher(ide_error_message)
-    quit()
+    return UJSONResponse({"error": error_message}, status_code = HTTP_404_NOT_FOUND)
 
 # .....................................................................................................................
-# .....................................................................................................................
+
+def bad_request_response(error_message):
     
+    ''' Helper function for bad requests '''
+    
+    return UJSONResponse({"error": error_message}, status_code = HTTP_400_BAD_REQUEST)
+
+# .....................................................................................................................
+
+def not_allowed_response(error_message):
+    
+    ''' Helper function for requests doing something they shouldn't (e.g. trying to save an existing entry) '''
+    
+    return UJSONResponse({"error": error_message}, status_code = HTTP_405_METHOD_NOT_ALLOWED)
+
+# .....................................................................................................................
+
+def post_success_response(success_message = True):
+    
+    ''' Helper function for post requests, when data is successfully added to the db '''
+    
+    return UJSONResponse({"success": success_message}, status_code = HTTP_201_CREATED)
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Demo
 
@@ -96,9 +112,6 @@ if __name__ == "__main__":
     
     pass
 
-
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Scrap
-
-
 

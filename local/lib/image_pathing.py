@@ -3,14 +3,6 @@
 """
 Created on Wed Mar 18 15:54:43 2020
 
-@author: wrk
-"""
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 18 15:51:25 2020
-
 @author: eo
 """
 
@@ -58,8 +50,8 @@ find_path_to_local()
 #%% Imports
 
 from local.lib.environment import get_env_images_folder
-from local.lib.quitters import ide_quit
 from local.lib.timekeeper_utils import epoch_ms_to_utc_datetime
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define classes
@@ -74,7 +66,7 @@ from local.lib.timekeeper_utils import epoch_ms_to_utc_datetime
 
 # .....................................................................................................................
 
-def build_base_image_pathing(dunder_file):
+def build_base_image_pathing(*, error_if_using_dropbox = True):
     
     ''' Helper function which generates the base folder pathing for storing images persistently '''
     
@@ -84,13 +76,14 @@ def build_base_image_pathing(dunder_file):
     
     # If there is no path provided through the environment, just store things in the same folder as this script 
     if env_image_folder_path is None:
-        script_folder_path = os.path.dirname(os.path.abspath(dunder_file))
-        base_image_folder = os.path.join(script_folder_path, "db_images")
+        this_script_folder_path = os.path.dirname(os.path.abspath(__file__))
+        project_root_folder = os.path.dirname(os.path.dirname(this_script_folder_path))
+        base_image_folder = os.path.join(project_root_folder, "images_dbserver")
     
     # Avoid syncing 'persistent' data
     dropbox_in_path = ("dropbox" in base_image_folder.lower())
-    if dropbox_in_path:
-        ide_quit("Can't run dbserver from a dropbox folder!")
+    if dropbox_in_path and error_if_using_dropbox:
+        raise EnvironmentError("Can't run dbserver from a dropbox folder!")
     
     # Make sure the folder path exists!
     os.makedirs(base_image_folder, exist_ok = True)
@@ -129,7 +122,14 @@ def build_image_pathing(base_image_folder_path, camera_select, image_folder_type
 
 if __name__ == "__main__":
     
-    pass
+    # Create pathing examples
+    base_image_path = build_base_image_pathing(error_if_using_dropbox = False)
+    example_image_path = build_image_pathing(base_image_path, "example_camera", "snapshots", 12345, 
+                                             create_folder_if_missing = False)
+    
+    # Print out example pathing for quick checks
+    print("", "Image base folder:", base_image_path, sep = "\n")
+    print("", "Example image path:", example_image_path, sep = "\n")
 
 
 # ---------------------------------------------------------------------------------------------------------------------

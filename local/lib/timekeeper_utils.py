@@ -49,6 +49,7 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+import time
 import datetime as dt
 
 
@@ -62,6 +63,43 @@ import datetime as dt
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define functions
+
+# .....................................................................................................................
+    
+def get_utc_datetime():
+
+    ''' Returns a datetime object based on UTC time, with timezone information included '''
+
+    return dt.datetime.utcnow().replace(tzinfo = get_utc_tzinfo())
+    
+# .....................................................................................................................
+    
+def get_local_datetime():
+
+    ''' Returns a datetime object based on the local time, with timezone information included '''
+
+    return dt.datetime.now(tz = get_local_tzinfo())
+
+# .....................................................................................................................
+
+def get_local_tzinfo():
+    
+    ''' Function which returns a local tzinfo object. Accounts for daylight savings '''
+    
+    # Figure out utc offset for local time, accounting for daylight savings
+    is_daylight_savings = time.localtime().tm_isdst
+    utc_offset_sec = time.altzone if is_daylight_savings else time.timezone
+    utc_offset_delta = dt.timedelta(seconds = -utc_offset_sec)
+    
+    return dt.timezone(offset = utc_offset_delta)
+    
+# .....................................................................................................................
+
+def get_utc_tzinfo():
+    
+    ''' Convenience function which returns a utc tzinfo object '''
+    
+    return dt.timezone.utc
 
 # .....................................................................................................................
 
@@ -98,6 +136,20 @@ def parse_isoformat_string(isoformat_datetime_str):
     parsed_dt = dt.datetime.strptime(isoformat_datetime_str[:], string_format).replace(tzinfo = parsed_tzinfo)
     
     return parsed_dt
+
+# .....................................................................................................................
+
+def datetime_to_isoformat_string(input_datetime):
+    
+    '''
+    Converts a datetime object into an isoformat string
+    Example:
+        "2019-01-30T11:22:33+00:00.000000"
+        
+    Note: This function assumes the datetime object has timezone information (tzinfo)
+    '''
+    
+    return input_datetime.isoformat()
 
 # .....................................................................................................................
 
