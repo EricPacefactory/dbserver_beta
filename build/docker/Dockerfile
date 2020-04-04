@@ -6,14 +6,6 @@ FROM pybase_image
 
 
 # -----------------------------------------------------------------------------
-#%% Compatibility
-
-# Needed for 'click' library to work properly
-ENV LC_ALL                          C.UTF-8
-ENV LANG                            C.UTF-8
-
-
-# -----------------------------------------------------------------------------
 #%% Set environment variables
 
 # Set environment variables for mongo db access
@@ -26,7 +18,7 @@ ENV DBSERVER_HOST                   0.0.0.0
 ENV DBSERVER_PORT                   8050
 
 # Set image saving path (i.e. persistent storage)
-ENV DBSERVER_IMAGE_FOLDER_PATH      $HOME/db_images
+ENV DBSERVER_IMAGE_FOLDER_PATH      $HOME/images_dbserver
 
 
 # -----------------------------------------------------------------------------
@@ -44,7 +36,7 @@ RUN pip3 install -r requirements.txt
 WORKDIR $HOME/realtime
 COPY . .
 
-# Run the db server! This is a blocking call...
+# Run the server! This is a blocking call...
 CMD uvicorn launch:asgi_app --host $DBSERVER_HOST --port $DBSERVER_PORT
 
 
@@ -52,5 +44,5 @@ CMD uvicorn launch:asgi_app --host $DBSERVER_HOST --port $DBSERVER_PORT
 # To use manually:
 
 # sudo docker build -t dbserver_image .
-# sudo docker run -d --network="host" -v /tmp/db_images:/home/scv2/db_images --name dbserver_container dbserver_image
+# sudo docker run -d --network="host" -v /tmp/images_dbserver:/home/scv2/images_dbserver --name dbserver_container dbserver_image
 
