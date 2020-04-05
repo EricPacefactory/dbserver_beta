@@ -144,7 +144,7 @@ def caminfo_get_relative_info(request):
     collection_ref = mclient[camera_select]["camerainfo"]
     query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
     
-    # Try to get the newest data, from the given list (which may be empty!)
+    # Try to get the newest data from the given list (which may be empty!)
     return_result = first_of_query(query_result, return_if_missing = None)
     empty_query = (return_result is None)
     if empty_query:
@@ -152,6 +152,77 @@ def caminfo_get_relative_info(request):
         return no_data_response(error_message)
     
     return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def caminfo_get_many_info(request):
+    
+    '''
+    Returns a list of camera info entries, given an input start and end time range.
+    The returned values from this route act similar to the 'relative info' route, in that only camera info
+    which was relative to the provided time range will be returned.
+    This includes all camera info generated during the given time period + the closest camera info
+    generate before the given start time (if applicable).
+    See 'caminfo_get_relative_info' route for more information.
+    '''
+    
+    # Initialize return value
+    many_caminfo_list = []
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert epoch inputs to integers, if needed
+    start_time = int(start_time) if start_time.isnumeric() else start_time
+    end_time = int(end_time) if end_time.isnumeric() else end_time
+    
+    # Convert times to epoch values for db lookup
+    start_ems = time_to_epoch_ms(start_time)
+    end_ems = time_to_epoch_ms(end_time)
+    
+    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    
+    # Build query to get earliest camera info first (i.e. the closest info before the given start time)
+    target_field = "_id"
+    query_dict = {target_field: {"$lte": start_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    collection_ref = mclient[camera_select]["camerainfo"]
+    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
+    
+    # Try to get the newest data from the given list (which may be empty!)
+    caminfo_before_start_time = first_of_query(query_result, return_if_missing = None)
+    have_early_caminfo = (caminfo_before_start_time is not None)
+    if have_early_caminfo:
+        many_caminfo_list.append(caminfo_before_start_time)
+    
+    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    
+    # Build query for camera info that was generated during the given time period
+    target_field = "_id"
+    query_dict = {target_field: {"$gt": start_ems, "$lt": end_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    collection_ref = mclient[camera_select]["camerainfo"]
+    query_result = collection_ref.find(query_dict, projection_dict)
+    
+    # Add entries that occured during the time range to the list
+    caminfo_in_range = list(query_result)
+    have_caminfo_in_range = (len(caminfo_in_range) > 0)
+    if have_caminfo_in_range:
+        many_caminfo_list += caminfo_in_range
+    
+    # Handle missing data case
+    no_caminfo_for_range = (len(many_caminfo_list) == 0)
+    if no_caminfo_for_range:
+        error_message = "No camera info for provided time range! Camera likely started later!"
+        return no_data_response(error_message)
+    
+    return UJSONResponse(many_caminfo_list)
 
 # .....................................................................................................................
 # .....................................................................................................................
@@ -171,6 +242,7 @@ def build_camerainfo_routes():
      Route(caminfo_url("/get-all-camera-info"), caminfo_get_all_info),
      Route(caminfo_url("/get-newest-camera-info"), caminfo_get_newest_info),
      Route(caminfo_url("/get-relative-camera-info/{target_time}"), caminfo_get_relative_info),
+     Route(caminfo_url("/get-many-camera-info/{start_time}/{end_time}"), caminfo_get_many_info),
     ]
     
     return camerainfo_routes
