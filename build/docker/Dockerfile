@@ -25,7 +25,7 @@ ENV DBSERVER_IMAGE_FOLDER_PATH      $HOME/images_dbserver
 #%% Setup python 
 
 # Install python requirements
-COPY requirements.txt $HOME/realtime
+COPY requirements.txt $HOME/dbserver
 RUN pip3 install -r requirements.txt
 
 
@@ -33,7 +33,7 @@ RUN pip3 install -r requirements.txt
 #%% Launch!
 
 # Move system files into the image
-WORKDIR $HOME/realtime
+WORKDIR $HOME/dbserver
 COPY . .
 
 # Run the server! This is a blocking call...
