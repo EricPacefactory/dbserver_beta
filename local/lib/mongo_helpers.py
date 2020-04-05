@@ -49,6 +49,8 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+from time import sleep
+
 import pymongo
 
 from local.lib.environment import get_mongo_protocol, get_mongo_host, get_mongo_port
@@ -108,15 +110,23 @@ def connect_to_mongo(connection_timeout_ms = 4000):
     # Get database object for manipulation
     mongo_client = pymongo.MongoClient(mongo_url, tz_aware = False, serverSelectionTimeoutMS = connection_timeout_ms)
     
-    # Try to force a connection to the database
-    is_connected, server_info = check_mongo_connection(mongo_client)
-    if not is_connected:
-        print("",
-              "ERROR:",
-              "Server couldn't connect to database",
-              "@ {}".format(mongo_url),
-              "", sep = "\n")
-        ide_quit("Connection error...")
+    # Repeatedly try to connect to MongoDB
+    try:
+        while True:
+            is_connected, server_info = check_mongo_connection(mongo_client)
+            if is_connected:
+                break
+            
+            # If we get here, we didn't connect, so provide an error and try again
+            print("",
+                  "ERROR:",
+                  "Server couldn't connect to database",
+                  "@ {}".format(mongo_url),
+                  "  --> Trying again...", sep = "\n")
+            sleep(3)
+            
+    except KeyboardInterrupt:
+        ide_quit("Connection error. Quitting...")
     
     return mongo_client
 
