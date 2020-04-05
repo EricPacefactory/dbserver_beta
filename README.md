@@ -44,15 +44,33 @@ There are a number of environment variables that can be used to alter the defaul
 
 `DEBUG_MODE` (default: 1)
 
+
+
+## Use with Docker (manually)
+
+Note that the `pybase` docker image is needed to build the dbserver image (see the scv2_deploy files for the pybase image).
+
+To build the docker image, navigate one level outside of the dbserver project root folder. Assuming the folder is called `dbserver`, use the following command:
+
+`sudo docker build -t dbserver_image -f ./dbserver/build/docker/Dockerfile ./dbserver`
+
+To run the dbserver image in a container, use the following command:
+
+`sudo docker run -d --network="host" -v /tmp/images_dbserver:/images_dbserver --name dbserver_container dbserver_image`
+
+This should launch the dbserver on `http:localhost:8050`
+
+Note that the run command assumes the persistent data (images) will be stored in `/tmp/images_dbserver`
+
+This  mapping means that data will eventually be deleted automatically by your operating system (on reboot?). While this is convenient for quick tests, a more permanent folder path should be used if the data is not meant to be lost! However, if data persistance isn't an issue and you don't need to be able to check the image data directly, the entire volume mapping command can be left out (i.e. delete the `-v /tmp/images_dbserver:/images_dbserver` part of the command).
+
 ## Major TODOs
 
 - Document environment variables (and update defaults?)
 
-- Clean up/separate routing functions
+- Add cycling mongo connection attempts to all mongo calls
 
-- Add cycling mongo connection attempts
-
-- Look into using pymongo find_one(...) function to optimize certain mongo calls
+- Look into optimizing routes/mongo calls
 
 - Look into async + pymongo (isn't supported?)
 
