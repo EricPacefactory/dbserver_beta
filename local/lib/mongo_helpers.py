@@ -95,7 +95,7 @@ def check_mongo_connection(mongo_client):
 
 # .....................................................................................................................
 
-def connect_to_mongo(connection_timeout_ms = 4000):
+def connect_to_mongo(connection_timeout_ms = 4000, max_connection_attempts = 15):
     
     ''' Helper function used to establish a conection to mongoDB '''
     
@@ -112,18 +112,25 @@ def connect_to_mongo(connection_timeout_ms = 4000):
     
     # Repeatedly try to connect to MongoDB
     try:
-        while True:
+        for k in range(max_connection_attempts):
             is_connected, server_info = check_mongo_connection(mongo_client)
             if is_connected:
                 break
             
-            # If we get here, we didn't connect, so provide an error and try again
+            # If we get here, we didn't connect, so provide some feedback and try again
             print("",
                   "ERROR:",
                   "Server couldn't connect to database",
                   "@ {}".format(mongo_url),
-                  "  --> Trying again...", sep = "\n")
+                  "  --> Trying again ({})".format(1 + k), sep = "\n")
             sleep(3)
+        
+        # Print additional warning indicator if we fail to connect after repeated attempts
+        failed_to_connect = (k >= (max_connection_attempts - 1))
+        if failed_to_connect:
+            print("",
+                  "Connection attempts to database failed!",
+                  "Server will start up anyways, but requests may not work...", sep = "\n")
             
     except KeyboardInterrupt:
         ide_quit("Connection error. Quitting...")
