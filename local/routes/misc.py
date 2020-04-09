@@ -124,6 +124,12 @@ def camera_delete_all(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
+    sanity_check = request.path_params["password"]
+    
+    # Don't delete unless the correct 'password' was given, just to avoid accidents
+    correct_password = "pf"
+    if sanity_check != correct_password:
+        return not_allowed_response("Wrong password. Database reset cancelled!")
     
     # Don't allow deletion of built-in dbs
     ignore_db_names = {"admin", "local", "config"}
@@ -239,7 +245,8 @@ def build_help_route(*route_name_and_list_tuples):
                       "  <p>--> String format times must follow isoformat</p>",
                       "    <p>{}ex: {}</p>".format(spacer_str, isoformat_example),
                       "  <p>--> Integer format times must be epoch millisecond values</p>",
-                      "    <p>{}ex: {}</p>".format(spacer_str, epoch_ms_example)]
+                      "    <p>{}ex: {}</p>".format(spacer_str, epoch_ms_example),
+                      "", "<br>", "<b><a href='/'>BACK</a></b>"]
         
         # Finally build the full html string to output
         html_resp = "\n".join(html_list)
@@ -261,7 +268,7 @@ def build_misc_routes():
      Route("/", root_page),
      Route("/get-all-camera-names", cameras_get_all_names),
      Route("/is-alive", is_alive_check),
-     Route("/delete-all/{camera_select:str}", camera_delete_all),
+     Route("/delete-all/{camera_select:str}/{password:str}", camera_delete_all),
      Route("/this/is/dangerous/but/reset-all/{password:str}", dbserver_reset_all)
     ]
     
