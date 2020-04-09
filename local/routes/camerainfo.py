@@ -298,9 +298,9 @@ def build_camerainfo_routes():
     [
      Route(caminfo_url("/get-all-camera-info"), caminfo_get_all_info),
      Route(caminfo_url("/get-newest-camera-info"), caminfo_get_newest_info),
-     Route(caminfo_url("/get-relative-camera-info/{target_time}"), caminfo_get_relative_info),
-     Route(caminfo_url("/get-many-camera-info/{start_time}/{end_time}"), caminfo_get_many_info),
-     Route(caminfo_url("/delete/by-time/{days_to_keep:int}"), caminfo_delete_by_days_to_keep)
+     Route(caminfo_url("/get-relative-camera-info/by-time-target/{target_time}"), caminfo_get_relative_info),
+     Route(caminfo_url("/get-many-camera-info/by-time-range/{start_time}/{end_time}"), caminfo_get_many_info),
+     Route(caminfo_url("/delete/by-cutoff/{days_to_keep:int}"), caminfo_delete_by_days_to_keep)
     ]
     
     return camerainfo_routes
