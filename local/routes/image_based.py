@@ -471,7 +471,7 @@ def build_snapshot_routes():
      Route(snap_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(snap_category)),
      Route(snap_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(snap_category)),
      Route(snap_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(snap_category)),
-     Route(snap_url("/delete/by-time/{days_to_keep:int}"), delete_by_days_to_keep(snap_category))
+     Route(snap_url("/delete/by-cutoff/{days_to_keep:int}"), delete_by_days_to_keep(snap_category))
     ]
     
     return snapshot_routes
@@ -495,7 +495,7 @@ def build_background_routes():
      Route(bg_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(bg_category)),
      Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(bg_category)),
      Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(bg_category)),
-     Route(bg_url("/delete/by-time/{days_to_keep:int}"), delete_by_days_to_keep(bg_category))
+     Route(bg_url("/delete/by-cutoff/{days_to_keep:int}"), delete_by_days_to_keep(bg_category))
     ]
     
     return background_routes

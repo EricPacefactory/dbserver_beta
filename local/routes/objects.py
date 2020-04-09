@@ -293,7 +293,7 @@ def build_object_routes():
      Route(obj_url("/get-one-metadata/by-id/{object_full_id:int}"), objects_get_one_metadata_by_id),
      Route(obj_url("/get-many-metadata/by-time-target/{target_time}"), objects_get_many_metadata_at_time),
      Route(obj_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), objects_get_many_metadata_by_time_range),
-     Route(obj_url("/delete/by-time/{days_to_keep:int}"), objects_delete_by_days_to_keep),
+     Route(obj_url("/delete/by-cutoff/{days_to_keep:int}"), objects_delete_by_days_to_keep),
      Route(obj_url("/set-indexing"), objects_set_indexing)
     ]
     
