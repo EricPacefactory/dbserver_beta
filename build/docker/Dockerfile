@@ -8,6 +8,9 @@ FROM pybase_image
 # -----------------------------------------------------------------------------
 #%% Set environment variables
 
+# Create a 'home' folder path to avoid storing everything in the root fs
+ENV HOME                            /home/scv2
+
 # Set environment variables for mongo db access
 ENV MONGO_HOST                      localhost
 ENV MONGO_PORT                      27017
@@ -22,7 +25,10 @@ ENV DBSERVER_IMAGE_FOLDER_PATH      $HOME/images_dbserver
 
 
 # -----------------------------------------------------------------------------
-#%% Setup python 
+#%% Setup python
+
+# Work with files outside of the root fs
+WORKDIR $HOME/realtime
 
 # Install python requirements
 COPY requirements.txt $HOME/dbserver
@@ -33,7 +39,6 @@ RUN pip3 install -r requirements.txt
 #%% Launch!
 
 # Move system files into the image
-WORKDIR $HOME/dbserver
 COPY . .
 
 # Run the server! This is a blocking call...
@@ -43,6 +48,7 @@ CMD uvicorn launch:asgi_app --host $DBSERVER_HOST --port $DBSERVER_PORT
 # -----------------------------------------------------------------------------
 # To use manually:
 
-# sudo docker build -t dbserver_image .
+# From outside dbserver project directory:
+# sudo docker build -t dbserver_image -f ./dbserver/build/docker/Dockerfile ./dbserver
 # sudo docker run -d --network="host" -v /tmp/images_dbserver:/home/scv2/images_dbserver --name dbserver_container dbserver_image
 
