@@ -17,7 +17,6 @@ from local.routes.misc import build_help_route, build_misc_routes
 from local.routes.objects import build_object_routes
 from local.routes.camerainfo import build_camerainfo_routes
 from local.routes.image_based import build_background_routes, build_snapshot_routes
-
 from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
 from local.lib.quitters import ide_catcher
 
@@ -25,8 +24,6 @@ from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
-
-import uvicorn
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -86,6 +83,9 @@ asgi_app = Starlette(debug = enable_debug_mode,
 # Better to use: 'uvicorn launch:asgi_app --host "0.0.0.0" --port 8050'
 if __name__ == "__main__":
     
+    # Only import this if we need to use it...
+    import uvicorn
+    
     # Prevent this script from launching the server inside of IDE (spyder)
     ide_catcher("Can't run server from IDE. Use a terminal!")
     
@@ -109,5 +109,5 @@ if __name__ == "__main__":
 # TODO
 # - setup to work within docker
 # - add mongo client connection cycling (script shouldn't just end if a connection isn't made!!)
-# - consider using websockets? Esp. for posting image data
+# - consider using websockets? Esp. for posting/retrieving image data
 
