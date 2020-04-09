@@ -50,7 +50,7 @@ find_path_to_local()
 #%% Imports
 
 from local.lib.mongo_helpers import connect_to_mongo
-from local.lib.timekeeper_utils import time_to_epoch_ms
+from local.lib.timekeeper_utils import time_to_epoch_ms,get_deletion_by_days_to_keep_timing
 from local.lib.response_helpers import first_of_query, no_data_response
 
 from starlette.responses import UJSONResponse
@@ -78,7 +78,7 @@ def caminfo_get_all_info(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["camerainfo"]
+    collection_ref = get_camera_info_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict)
     
     return UJSONResponse(list(query_result))
@@ -103,7 +103,7 @@ def caminfo_get_newest_info(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["camerainfo"]
+    collection_ref = get_camera_info_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
     
     # Pull out only the newest entry & handle missing data
@@ -141,7 +141,7 @@ def caminfo_get_relative_info(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["camerainfo"]
+    collection_ref = get_camera_info_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
     
     # Try to get the newest data from the given list (which may be empty!)
@@ -183,6 +183,7 @@ def caminfo_get_many_info(request):
     end_ems = time_to_epoch_ms(end_time)
     
     # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    # Find first camera info that occurred before the provided range (since it is relevant to the range)
     
     # Build query to get earliest camera info first (i.e. the closest info before the given start time)
     target_field = "_id"
@@ -190,7 +191,7 @@ def caminfo_get_many_info(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["camerainfo"]
+    collection_ref = get_camera_info_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
     
     # Try to get the newest data from the given list (which may be empty!)
@@ -200,6 +201,7 @@ def caminfo_get_many_info(request):
         many_caminfo_list.append(caminfo_before_start_time)
     
     # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    # Find camera info within the provided range, and return it along with the first info before the range
     
     # Build query for camera info that was generated during the given time period
     target_field = "_id"
@@ -207,7 +209,7 @@ def caminfo_get_many_info(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["camerainfo"]
+    collection_ref = get_camera_info_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict)
     
     # Add entries that occured during the time range to the list
@@ -225,11 +227,66 @@ def caminfo_get_many_info(request):
     return UJSONResponse(many_caminfo_list)
 
 # .....................................................................................................................
+
+def caminfo_delete_by_days_to_keep(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    days_to_keep = request.path_params["days_to_keep"]
+    
+    # Get timing needed to handle deletions
+    oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = get_deletion_by_days_to_keep_timing(days_to_keep)
+    
+    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    # Find oldest camera info that we need to keep (would have occurred before deletion target time)
+    
+    # Find the first camera info before the target deletion time (which we'll need to keep)
+    target_field = "_id"
+    query_dict = {target_field: {"$lte": oldest_allowed_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    collection_ref = get_camera_info_collection(camera_select)
+    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
+    
+    # Try to get the newest data from the given list (which may be empty!)
+    return_result = first_of_query(query_result, return_if_missing = None)
+    empty_query = (return_result is None)
+    
+    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    # Build & execute the deletion command
+    
+    # Build new deletion target time, if possible, which deletes all camera info before the oldest one we need to keep
+    oldest_camera_info_ems = oldest_allowed_ems
+    if not empty_query:
+        oldest_camera_info_ems = return_result["start_epoch_ms"] - 1000
+    
+    # Build filter
+    target_field = "_id"
+    filter_dict = {target_field: {"$lt": oldest_camera_info_ems}}
+    
+    # Send deletion command to the db
+    collection_ref = get_camera_info_collection(camera_select)
+    delete_response = collection_ref.delete_many(filter_dict)
+    
+    # Build output to provide feedback about deletion
+    return_result = {"deletion_datetime": deletion_datetime_str,
+                     "deletion_epoch_ms": oldest_allowed_ems,
+                     "mongo_response": delete_response}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
 # .....................................................................................................................
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define call functions
+
+# .....................................................................................................................
+
+def get_camera_info_collection(camera_select):
+    return mclient[camera_select]["camerainfo"]
 
 # .....................................................................................................................
 
@@ -243,6 +300,7 @@ def build_camerainfo_routes():
      Route(caminfo_url("/get-newest-camera-info"), caminfo_get_newest_info),
      Route(caminfo_url("/get-relative-camera-info/{target_time}"), caminfo_get_relative_info),
      Route(caminfo_url("/get-many-camera-info/{start_time}/{end_time}"), caminfo_get_many_info),
+     Route(caminfo_url("/delete/by-time/{days_to_keep:int}"), caminfo_delete_by_days_to_keep)
     ]
     
     return camerainfo_routes

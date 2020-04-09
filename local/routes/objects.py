@@ -50,7 +50,7 @@ find_path_to_local()
 #%% Imports
 
 from local.lib.mongo_helpers import connect_to_mongo
-from local.lib.timekeeper_utils import time_to_epoch_ms
+from local.lib.timekeeper_utils import time_to_epoch_ms, get_deletion_by_days_to_keep_timing
 from local.lib.response_helpers import first_of_query, bad_request_response, no_data_response
 
 from starlette.responses import UJSONResponse
@@ -75,7 +75,7 @@ def objects_get_newest_metadata(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["objects"]
+    collection_ref = get_object_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
     
     # Pull out a single entry (there should only be one)
@@ -102,7 +102,7 @@ def objects_get_ids_at_time(request):
     projection_dict = {}
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["objects"]
+    collection_ref = get_object_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict)
     
     # Convert to list of ids only
@@ -133,7 +133,7 @@ def objects_get_ids_by_time_range(request):
     projection_dict = {}
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["objects"]
+    collection_ref = get_object_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
     
     # Pull out the epoch values into a list, instead of returning a list of dictionaries
@@ -154,7 +154,7 @@ def objects_get_one_metadata_by_id(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["objects"]
+    collection_ref = get_object_collection(camera_select)
     query_result = collection_ref.find_one(query_dict, projection_dict)
     
     # Deal with missing data
@@ -179,7 +179,7 @@ def objects_get_many_metadata_at_time(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["objects"]
+    collection_ref = get_object_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict)
     
     # Convert to dictionary, with object ids as keys
@@ -210,7 +210,7 @@ def objects_get_many_metadata_by_time_range(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = mclient[camera_select]["objects"]
+    collection_ref = get_object_collection(camera_select)
     query_result = collection_ref.find(query_dict, projection_dict)
     
     # Convert to dictionary, with object ids as keys
@@ -220,11 +220,64 @@ def objects_get_many_metadata_by_time_range(request):
     return UJSONResponse(return_result)
 
 # .....................................................................................................................
+
+def objects_delete_by_days_to_keep(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    days_to_keep = request.path_params["days_to_keep"]
+    
+    # Get timing needed to handle deletions
+    oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = get_deletion_by_days_to_keep_timing(days_to_keep)
+    
+    # Build filter
+    target_field = "final_epoch_ms"
+    filter_dict = {target_field: {"$lt": oldest_allowed_ems}}
+    
+    # Send deletion command to the db
+    collection_ref = get_object_collection(camera_select)
+    delete_response = collection_ref.delete_many(filter_dict)
+    
+    # Build output to provide feedback about deletion
+    return_result = {"deletion_datetime": deletion_datetime_str,
+                     "deletion_epoch_ms": oldest_allowed_ems,
+                     "mongo_response": delete_response}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def objects_set_indexing(request):
+    
+    ''' 
+    Hacky function... Used to manually set object timing indexes for a specified camera. 
+    Should eventually be done automatically (during data posting or by periodic background task?)
+    '''
+    
+    # Get selected camera & corresponding collection
+    camera_select = request.path_params["camera_select"]
+    collection_ref = get_object_collection(camera_select)
+    
+    # HACKY: Assign object timing index every time this route is called... Should really be done when posting?
+    first_resp = collection_ref.create_index("first_epoch_ms")
+    final_resp = collection_ref.create_index("final_epoch_ms")
+    
+    # Build response for debugging
+    return_result = {"index_response": [first_resp, final_resp]}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
 # .....................................................................................................................
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define call functions
+
+# .....................................................................................................................
+
+def get_object_collection(camera_select):
+    return mclient[camera_select]["objects"]
 
 # .....................................................................................................................
 
@@ -240,6 +293,8 @@ def build_object_routes():
      Route(obj_url("/get-one-metadata/by-id/{object_full_id:int}"), objects_get_one_metadata_by_id),
      Route(obj_url("/get-many-metadata/by-time-target/{target_time}"), objects_get_many_metadata_at_time),
      Route(obj_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), objects_get_many_metadata_by_time_range),
+     Route(obj_url("/delete/by-time/{days_to_keep:int}"), objects_delete_by_days_to_keep),
+     Route(obj_url("/set-indexing"), objects_set_indexing)
     ]
     
     return object_routes

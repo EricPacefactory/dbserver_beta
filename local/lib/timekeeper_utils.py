@@ -207,11 +207,125 @@ def time_to_epoch_ms(time_value):
 
 # .....................................................................................................................
 # .....................................................................................................................
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Deletion timing functions
+
+# .....................................................................................................................
+
+def get_local_datetime_in_past(num_days_backward):
     
+    '''
+    Helper function for getting a datetime from several days ago. Mostly intended for deletion/time cut-offs
+    Returns a datetime object
+    '''
+    
+    # Make sure days backward is greater than 0
+    num_days_backward = max(0, num_days_backward)
+    
+    # Calculate the datetime from several days ago
+    current_dt = get_local_datetime()
+    past_dt = current_dt - dt.timedelta(days = num_days_backward)
+    
+    return past_dt
+
+# .....................................................................................................................
+
+def get_deletion_by_days_to_keep_timing(days_to_keep):
+    
+    '''
+    Helper function which returns timing info needed for 'delete by days to keep' functions
+    Returns:
+        oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str
+    '''
+    
+    # Figure out the current day
+    oldest_allowed_dt = get_local_datetime_in_past(days_to_keep)
+    oldest_allowed_ems = datetime_to_epoch_ms(oldest_allowed_dt)
+    deletion_datetime_str = oldest_allowed_dt.strftime(DATETIME_FORMAT)
+    
+    return oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Image file formatting functions
+
+# .....................................................................................................................
+
+def image_folder_names_to_epoch_ms(date_folder_name, hour_folder_name = None):
+    
+    '''
+    Helper function used to generate an epoch_ms (utc) value from provided date/hour folder names.
+    Returns:
+        start_of_hour_epoch_ms, end_of_hour_epoch_ms
+    '''
+    
+    # Get the starting datetime, based on the given date/hour folder names
+    no_hour = (hour_folder_name is None)
+    datetime_str = date_folder_name if no_hour else "{} {}".format(date_folder_name, hour_folder_name)
+    str_format = DATE_FORMAT if no_hour else "{} {}".format(DATE_FORMAT, HOUR_FORMAT)
+    start_of_hour_dt_local = dt.datetime.strptime(datetime_str, str_format)
+    
+    # Convert start time to utc, since image folders are saved in this format
+    start_of_hour_dt_utc = start_of_hour_dt_local.replace(tzinfo = get_utc_tzinfo())
+    start_of_hour_epoch_ms = datetime_to_epoch_ms(start_of_hour_dt_utc)
+    
+    # Calculate the end of hour epoch_ms value
+    ms_in_one_hour = 3600000    # (60 mins/hr * 60 sec/min * 1000 ms/sec)
+    end_of_hour_epoch_ms = start_of_hour_epoch_ms + ms_in_one_hour - 1
+    
+    return start_of_hour_epoch_ms, end_of_hour_epoch_ms
+
+# .....................................................................................................................
+
+def epoch_ms_to_image_folder_names(epoch_ms):
+    
+    ''' 
+    Helper function used to provided consistent folder naming, based on input epoch_ms times
+    Returns: 
+        date_folder_name, hour_folder_name
+    '''
+    
+    # Convert provided epoch_ms value into a datetime, so we can create date + hour folder names from it
+    target_time_dt = epoch_ms_to_utc_datetime(epoch_ms)
+    date_name = target_time_dt.strftime(DATE_FORMAT)
+    hour_name = target_time_dt.strftime(HOUR_FORMAT)
+    
+    return date_name, hour_name
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Global setup
+
+# Set string formatting globally, so it can be applied consistently wherever possible
+DATE_FORMAT = "%Y-%m-%d"
+TIME_FORMAT = "%H:%M:%S"
+DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+HOUR_FORMAT = "%H"
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Demo
 
 if __name__ == "__main__":
+    
+    # Check that image folder naming works properly (can be weird due to utc conversion!)
+    ex_ems = 800000000000
+    ex_date_folder, ex_hour_folder = epoch_ms_to_image_folder_names(ex_ems)
+    ex_start_ems, ex_end_ems = image_folder_names_to_epoch_ms(ex_date_folder, ex_hour_folder)
+    print("", 
+          "  Input EMS: {}".format(ex_ems),
+          "Date folder: {}".format(ex_date_folder),
+          "Hour folder: {}".format(ex_hour_folder),
+          "  Start EMS: {}".format(ex_start_ems),
+          "    End EMS: {}".format(ex_end_ems),
+          "",
+          "Input is within start/end: {}".format(ex_start_ems <= ex_ems <= ex_end_ems),
+          "", sep = "\n")
     
     pass
 

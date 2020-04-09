@@ -51,10 +51,13 @@ find_path_to_local()
 
 import base64
 
+from shutil import rmtree
+
 from local.lib.mongo_helpers import connect_to_mongo
 from local.lib.timekeeper_utils import time_to_epoch_ms
+from local.lib.timekeeper_utils import get_deletion_by_days_to_keep_timing
 from local.lib.response_helpers import first_of_query, no_data_response, bad_request_response
-from local.lib.image_pathing import build_base_image_pathing, build_image_pathing
+from local.lib.image_pathing import build_base_image_pathing, build_image_pathing, get_old_image_folders_list
 
 from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse
 from starlette.routing import Route
@@ -396,6 +399,55 @@ def get_many_metadata(data_category):
 # .....................................................................................................................
 # .....................................................................................................................
 
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Shared routes (image + metadata)
+
+# .....................................................................................................................
+
+def delete_by_days_to_keep(data_category):
+    
+    def inner_delete_by_days_to_keep(request):
+        
+        # Get information from route url
+        camera_select = request.path_params["camera_select"]
+        days_to_keep = request.path_params["days_to_keep"]
+        
+        # Get timing needed to handle deletions
+        oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = \
+        get_deletion_by_days_to_keep_timing(days_to_keep)
+        
+        # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+        # Delete metadata entries
+        
+        # Build filter
+        filter_dict = {"_id": {"$lt": oldest_allowed_ems}}
+        
+        # Send deletion command to the db
+        collection_ref = mclient[camera_select][data_category]
+        delete_response = collection_ref.delete_many(filter_dict)
+        
+        # Build output to provide feedback about deletion
+        return_result = {"deletion_datetime": deletion_datetime_str,
+                         "deletion_epoch_ms": oldest_allowed_ems,
+                         "mongo_response": delete_response}
+        
+        # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+        # Delete image files (after metadata, so metadata reference doesn't exist anymore)
+        
+        # Get list of all folder paths that hold data older than the allowable time
+        old_image_folder_paths = \
+        get_old_image_folders_list(IMAGE_FOLDER, camera_select, data_category, oldest_allowed_ems)
+        
+        # Delete all the image data!
+        for each_folder_path in old_image_folder_paths:
+            rmtree(each_folder_path, ignore_errors = True)
+        
+        return UJSONResponse(return_result)
+    
+    return inner_delete_by_days_to_keep
+
+# .....................................................................................................................
+# .....................................................................................................................
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define build functions
@@ -418,7 +470,8 @@ def build_snapshot_routes():
      Route(snap_url("/get-one-metadata/by-ems/{epoch_ms:int}"), get_one_metadata(snap_category)),
      Route(snap_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(snap_category)),
      Route(snap_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(snap_category)),
-     Route(snap_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(snap_category))
+     Route(snap_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(snap_category)),
+     Route(snap_url("/delete/by-time/{days_to_keep:int}"), delete_by_days_to_keep(snap_category))
     ]
     
     return snapshot_routes
@@ -441,7 +494,8 @@ def build_background_routes():
      Route(bg_url("/get-one-metadata/by-ems/{epoch_ms:int}"), get_one_metadata(bg_category)),
      Route(bg_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(bg_category)),
      Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(bg_category)),
-     Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(bg_category))
+     Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(bg_category)),
+     Route(bg_url("/delete/by-time/{days_to_keep:int}"), delete_by_days_to_keep(bg_category))
     ]
     
     return background_routes

@@ -49,8 +49,12 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+from shutil import rmtree
+
 from local.lib.mongo_helpers import check_mongo_connection, connect_to_mongo
 from local.lib.timekeeper_utils import get_local_datetime, datetime_to_isoformat_string, datetime_to_epoch_ms
+from local.lib.image_pathing import build_base_image_pathing, build_camera_image_path
+from local.lib.response_helpers import not_allowed_response
 
 from starlette.responses import UJSONResponse, HTMLResponse
 from starlette.routing import Route
@@ -111,6 +115,78 @@ def cameras_get_all_names(request):
     return_result = [each_name for each_name in all_db_names_list if each_name not in ignore_db_names]
     
     return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def camera_delete_all(request):
+    
+    ''' Nuclear route. Completely removes a camera (+ image data) from the system '''
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Don't allow deletion of built-in dbs
+    ignore_db_names = {"admin", "local", "config"}
+    if camera_select in ignore_db_names:
+        return not_allowed_response("Can't delete the given entry! ({})".format(camera_select))
+    
+    # Get image pathing
+    base_image_path = build_base_image_pathing()
+    camera_image_folder_path = build_camera_image_path(base_image_path, camera_select)
+    
+    # Check if camera is in our list
+    all_db_names = mclient.list_database_names()
+    camera_in_mongo_before = (camera_select in all_db_names)
+    camera_in_image_storage_before = (os.path.exists(camera_image_folder_path))
+    camera_exists_before = (camera_in_mongo_before or camera_in_image_storage_before)
+    
+    # Wipe out entire camera database and image folder, if possible
+    mclient.drop_database(camera_select)
+    rmtree(camera_image_folder_path, ignore_errors = True)
+    
+    # Check if the camera has been removed
+    all_db_names = mclient.list_database_names()
+    camera_in_mongo_after = (camera_select in all_db_names)
+    camera_in_image_storage_after = (os.path.exists(camera_image_folder_path))
+    camera_exists_after = (camera_in_mongo_after or camera_in_image_storage_after)
+    
+    # Build output for feedback
+    return_result = {"camera_exists_before": camera_exists_before,
+                     "camera_exists_after": camera_exists_after}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def dbserver_reset_all(request):
+    
+    ''' Extra-nuclear option!!! Completely removes all data from mongo and image data from storage '''
+    
+    # Get information from route url
+    sanity_check = request.path_params["password"]
+    
+    # Don't reset unless the correct 'password' was given, just to avoid accidents
+    correct_password = "pf"
+    if sanity_check != correct_password:
+        return not_allowed_response("Wrong password. Database reset cancelled!")
+    
+    # Clear all database entries, except the system ones
+    ignore_db_names = {"admin", "local", "config"}
+    all_db_names = mclient.list_database_names()
+    data_removed = []
+    for each_db_name in all_db_names:
+        if each_db_name in ignore_db_names:
+            continue
+        mclient.drop_database(each_db_name)
+        data_removed.append(each_db_name)
+    
+    # Delete image folder (but re-create an empty folder)
+    base_image_path = build_base_image_pathing()
+    images_removed = os.listdir(base_image_path)
+    rmtree(base_image_path, ignore_errors = True)
+    os.makedirs(base_image_path, exist_ok = True)
+    
+    return UJSONResponse({"reset": True, "data_removed": data_removed, "images_removed": images_removed})
 
 # .....................................................................................................................
 # .....................................................................................................................
@@ -184,7 +260,9 @@ def build_misc_routes():
     [
      Route("/", root_page),
      Route("/get-all-camera-names", cameras_get_all_names),
-     Route("/is-alive", is_alive_check)
+     Route("/is-alive", is_alive_check),
+     Route("/delete-all/{camera_select:str}", camera_delete_all),
+     Route("/this/is/dangerous/but/reset-all/{password:str}", dbserver_reset_all)
     ]
     
     return misc_routes
@@ -209,4 +287,6 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Scrap
 
+# TODO:
+# - remove object data index-setting (from get-all-names route) to a better spot obj data posting?)
 

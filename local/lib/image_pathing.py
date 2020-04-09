@@ -50,7 +50,7 @@ find_path_to_local()
 #%% Imports
 
 from local.lib.environment import get_env_images_folder
-from local.lib.timekeeper_utils import epoch_ms_to_utc_datetime
+from local.lib.timekeeper_utils import epoch_ms_to_image_folder_names, image_folder_names_to_epoch_ms
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -92,20 +92,23 @@ def build_base_image_pathing(*, error_if_using_dropbox = True):
 
 # .....................................................................................................................
 
+def build_camera_image_path(base_image_path, camera_select, *path_joins):
+    return os.path.join(base_image_path, camera_select, *path_joins)
+
+# .....................................................................................................................
+
 def build_image_pathing(base_image_folder_path, camera_select, image_folder_type, epoch_ms, 
                         create_folder_if_missing = False):
     
     ''' Function which generates local folder pathing to save uploaded images '''
     
     # Figure out the folder pathing for the given timestamp
-    target_time_dt = epoch_ms_to_utc_datetime(epoch_ms)
-    target_date_str = target_time_dt.strftime("%Y-%m-%d")
-    target_hour_str = target_time_dt.strftime("%H")
+    date_folder_name, hour_folder_name = epoch_ms_to_image_folder_names(epoch_ms)
     
     # Build target file name folder pathing
     image_file_name = "{}.jpg".format(epoch_ms)
-    image_folder_path = os.path.join(base_image_folder_path, camera_select,
-                                     image_folder_type, target_date_str, target_hour_str)
+    image_folder_path = build_camera_image_path(base_image_folder_path, camera_select,
+                                                image_folder_type, date_folder_name, hour_folder_name)
     image_file_path = os.path.join(image_folder_path, image_file_name)
     
     # Create the folder path if needed
@@ -113,6 +116,44 @@ def build_image_pathing(base_image_folder_path, camera_select, image_folder_type
         os.makedirs(image_folder_path, exist_ok = True)
     
     return image_file_path
+
+# .....................................................................................................................
+
+def get_old_image_folders_list(base_image_folder_path, camera_select, image_folder_type, oldest_allowed_ems):
+    
+    ''' Helper function which provides pathing to all image date folders (likely used for deletion!) '''
+    
+    # Get list of all date folders for the provided camera & image type
+    image_type_folder_path = build_camera_image_path(base_image_folder_path, camera_select, image_folder_type)
+    
+    # Get list of all date folders
+    date_folder_names_list = os.listdir(image_type_folder_path)
+    
+    # Go through all hour folders (for all dates)
+    old_image_folders_path = []
+    for each_date_name in date_folder_names_list:
+        
+        # Build pathing to the parent date folder
+        date_folder_path = os.path.join(image_type_folder_path, each_date_name)
+        
+        # Return the parent date folder path if the beginning of the day would be too old (and skip hours)
+        beginning_of_day_ems, _ = image_folder_names_to_epoch_ms(each_date_name)
+        if beginning_of_day_ems < oldest_allowed_ems:
+            old_image_folders_path.append(date_folder_path)
+            continue
+        
+        # Loop over every hour folder and store it's path if it's 'too old'
+        hour_folder_names_list = os.listdir(date_folder_path)
+        for each_hour_name in hour_folder_names_list:
+            
+            # Consider an hour folder 'too old' if the end of the hour is older than the oldest allowed time
+            # (as opposed to using the start of the hour, since some files within may be new enough)
+            _, end_of_hour_ems = image_folder_names_to_epoch_ms(each_date_name, each_hour_name)
+            if end_of_hour_ems < oldest_allowed_ems:
+                hour_folder_path = os.path.join(date_folder_path, each_hour_name)
+                old_image_folders_path.append(hour_folder_path)
+    
+    return old_image_folders_path
 
 # .....................................................................................................................
 # .....................................................................................................................
