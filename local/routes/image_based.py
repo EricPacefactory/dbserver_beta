@@ -51,6 +51,7 @@ find_path_to_local()
 
 import base64
 
+from time import perf_counter
 from shutil import rmtree
 
 from local.lib.mongo_helpers import connect_to_mongo
@@ -397,6 +398,149 @@ def get_many_metadata(data_category):
     return inner_get_many_metadata
 
 # .....................................................................................................................
+
+def get_many_metadata_n_samples(data_category):
+    
+    def inner_get_many_metadata_n_samples(request):
+        
+        # Get information from route url
+        camera_select = request.path_params["camera_select"]
+        n_samples = request.path_params["n"]
+        start_time = request.path_params["start_time"]
+        end_time = request.path_params["end_time"]
+        
+        # Handle zero/negative sample cases
+        if n_samples < 1:
+            return UJSONResponse([])
+        
+        # Convert epoch inputs to integers, if needed
+        start_time = int(start_time) if start_time.isnumeric() else start_time
+        end_time = int(end_time) if end_time.isnumeric() else end_time
+        
+        # Convert times to epoch values for db lookup
+        start_ems = time_to_epoch_ms(start_time)
+        end_ems = time_to_epoch_ms(end_time)
+        
+        # Build query
+        target_field = "_id"
+        query_dict = {target_field: {"$gte": start_ems, "$lt": end_ems}}
+        projection_dict = None
+        
+        # Request data from the db
+        collection_ref = mclient[camera_select][data_category]
+        query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
+        
+        # Convert result to a list so we can subsample from it
+        result_list = list(query_result)
+        num_samples_total = len(result_list)
+        
+        # Handle cases where there are fewer (or equal) results than the number of samples requested
+        if num_samples_total <= n_samples:
+            return UJSONResponse(result_list)
+        
+        # Handle special case where only 1 sample is requested. We'll grab the middle one
+        if n_samples == 1:
+            middle_idx = int(num_samples_total / 2)
+            return_result = [result_list[middle_idx]]
+            return UJSONResponse(return_result)
+        
+        # Pick out n-samples from the result
+        step_factor = (num_samples_total - 1) / (n_samples - 1)
+        return_result = [result_list[int(round(k * step_factor))] for k in range(n_samples)]
+        
+        return UJSONResponse(return_result)
+    
+    return inner_get_many_metadata_n_samples
+
+# .....................................................................................................................
+
+def get_many_metadata_skip_n_subsample(data_category):
+    
+    def inner_get_many_metadata_skip_n_subsample(request):
+        
+        # Get information from route url
+        camera_select = request.path_params["camera_select"]
+        skip_n = request.path_params["n"]
+        start_time = request.path_params["start_time"]
+        end_time = request.path_params["end_time"]
+        
+        # Make sure the skip value is positive, and get the subsample factor
+        skip_n = max(0, skip_n)
+        nth_subsample = 1 + skip_n
+        
+        # Convert epoch inputs to integers, if needed
+        start_time = int(start_time) if start_time.isnumeric() else start_time
+        end_time = int(end_time) if end_time.isnumeric() else end_time
+        
+        # Convert times to epoch values for db lookup
+        start_ems = time_to_epoch_ms(start_time)
+        end_ems = time_to_epoch_ms(end_time)
+        
+        # Build query
+        target_field = "_id"
+        query_dict = {target_field: {"$gte": start_ems, "$lt": end_ems}}
+        projection_dict = None
+        
+        # Request data from the db
+        collection_ref = mclient[camera_select][data_category]
+        query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
+        
+        # Convert result to a list so we can subsample from it
+        result_list = list(query_result)
+        num_samples_total = len(result_list)
+        
+        # Handle cases with only 0, 1 or 2 entries (where we can't meaningfully skip samples)
+        if num_samples_total < 3:
+            return UJSONResponse(result_list)
+        
+        # If we have data, figure out the best first-index offset, so we evenly place the subsamples
+        # For example, given a list: [1,2,3,4,5,6,7,8,9], skip 3
+        #   -> Simplest solution: [1, 4, 7]
+        #   ->   Better solution: [2, 5, 8]
+        subsample_extent = int(1 + nth_subsample * int((num_samples_total - 1) / nth_subsample))
+        first_index_offset = int((num_samples_total - subsample_extent) / 2)
+        subsampled_list = result_list[first_index_offset::nth_subsample]
+        
+        return UJSONResponse(subsampled_list)
+    
+    return inner_get_many_metadata_skip_n_subsample
+
+# .....................................................................................................................
+
+def count_by_time_range(data_category):
+    
+    def inner_count_by_time_range(request):
+        
+        # Get information from route url
+        camera_select = request.path_params["camera_select"]
+        start_time = request.path_params["start_time"]
+        end_time = request.path_params["end_time"]
+        
+        # Convert epoch inputs to integers, if needed
+        start_time = int(start_time) if start_time.isnumeric() else start_time
+        end_time = int(end_time) if end_time.isnumeric() else end_time
+        
+        # Convert times to epoch values for db lookup
+        start_ems = time_to_epoch_ms(start_time)
+        end_ems = time_to_epoch_ms(end_time)
+        
+        # Build query
+        target_field = "_id"
+        query_dict = {target_field: {"$gte": start_ems, "$lt": end_ems}}
+        projection_dict = None
+        
+        # Request data from the db
+        collection_ref = mclient[camera_select][data_category]
+        query_result = collection_ref.count_documents(query_dict, projection_dict)
+        
+        # Convert to dictionary with count
+        return_result = {"count": int(query_result)}
+        
+        return UJSONResponse(return_result)
+    
+    return inner_count_by_time_range
+
+# .....................................................................................................................
 # .....................................................................................................................
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -416,6 +560,9 @@ def delete_by_days_to_keep(data_category):
         oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = \
         get_deletion_by_days_to_keep_timing(days_to_keep)
         
+        # Start timing
+        t_start = perf_counter()
+        
         # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
         # Delete metadata entries
         
@@ -425,11 +572,6 @@ def delete_by_days_to_keep(data_category):
         # Send deletion command to the db
         collection_ref = mclient[camera_select][data_category]
         delete_response = collection_ref.delete_many(filter_dict)
-        
-        # Build output to provide feedback about deletion
-        return_result = {"deletion_datetime": deletion_datetime_str,
-                         "deletion_epoch_ms": oldest_allowed_ems,
-                         "mongo_response": delete_response}
         
         # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
         # Delete image files (after metadata, so metadata reference doesn't exist anymore)
@@ -441,6 +583,18 @@ def delete_by_days_to_keep(data_category):
         # Delete all the image data!
         for each_folder_path in old_image_folder_paths:
             rmtree(each_folder_path, ignore_errors = True)
+        
+        # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+        
+        # End timing
+        t_end = perf_counter()
+        time_taken_ms = int(round(1000 * (t_end - t_start)))
+        
+        # Build output to provide feedback about deletion
+        return_result = {"deletion_datetime": deletion_datetime_str,
+                         "deletion_epoch_ms": oldest_allowed_ems,
+                         "time_taken_ms": time_taken_ms,
+                         "mongo_response": delete_response}
         
         return UJSONResponse(return_result)
     
@@ -469,8 +623,13 @@ def build_snapshot_routes():
      Route(snap_url("/get-closest-metadata/by-time-target/{target_time}"), get_closest_metadata_by_time(snap_category)),
      Route(snap_url("/get-one-metadata/by-ems/{epoch_ms:int}"), get_one_metadata(snap_category)),
      Route(snap_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(snap_category)),
+     Route(snap_url("/get-many-metadata/by-time-range/skip-n/{start_time}/{end_time}/{n:int}"), 
+           get_many_metadata_skip_n_subsample(snap_category)),
+     Route(snap_url("/get-many-metadata/by-time-range/n-samples/{start_time}/{end_time}/{n:int}"), 
+           get_many_metadata_n_samples(snap_category)),
      Route(snap_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(snap_category)),
      Route(snap_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(snap_category)),
+     Route(snap_url("/count/by-time-range/{start_time}/{end_time}"), count_by_time_range(snap_category)),
      Route(snap_url("/delete/by-cutoff/{days_to_keep:int}"), delete_by_days_to_keep(snap_category))
     ]
     
@@ -493,8 +652,13 @@ def build_background_routes():
      Route(bg_url("/get-closest-metadata/by-time-target/{target_time}"), get_closest_metadata_by_time(bg_category)),
      Route(bg_url("/get-one-metadata/by-ems/{epoch_ms:int}"), get_one_metadata(bg_category)),
      Route(bg_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), get_many_metadata(bg_category)),
+     Route(bg_url("/get-many-metadata/by-time-range/skip-n/{start_time}/{end_time}/{n:int}"), 
+           get_many_metadata_skip_n_subsample(bg_category)),
+     Route(bg_url("/get-many-metadata/by-time-range/n-samples/{start_time}/{end_time}/{n:int}"), 
+           get_many_metadata_n_samples(bg_category)),
      Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), get_one_image(bg_category)),
      Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), get_one_b64_jpg(bg_category)),
+     Route(bg_url("/count/by-time-range/{start_time}/{end_time}"), count_by_time_range(bg_category)),
      Route(bg_url("/delete/by-cutoff/{days_to_keep:int}"), delete_by_days_to_keep(bg_category))
     ]
     
