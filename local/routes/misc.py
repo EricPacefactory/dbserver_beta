@@ -49,6 +49,7 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+from time import perf_counter
 from shutil import rmtree
 
 from local.lib.mongo_helpers import check_mongo_connection, connect_to_mongo
@@ -118,7 +119,7 @@ def cameras_get_all_names(request):
 
 # .....................................................................................................................
 
-def camera_delete_all(request):
+def remove_one_camera(request):
     
     ''' Nuclear route. Completely removes a camera (+ image data) from the system '''
     
@@ -135,6 +136,9 @@ def camera_delete_all(request):
     ignore_db_names = {"admin", "local", "config"}
     if camera_select in ignore_db_names:
         return not_allowed_response("Can't delete the given entry! ({})".format(camera_select))
+    
+    # Start timing
+    t_start = perf_counter()
     
     # Get image pathing
     base_image_path = build_base_image_pathing()
@@ -156,15 +160,20 @@ def camera_delete_all(request):
     camera_in_image_storage_after = (os.path.exists(camera_image_folder_path))
     camera_exists_after = (camera_in_mongo_after or camera_in_image_storage_after)
     
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    
     # Build output for feedback
     return_result = {"camera_exists_before": camera_exists_before,
-                     "camera_exists_after": camera_exists_after}
+                     "camera_exists_after": camera_exists_after,
+                     "time_taken_ms": time_taken_ms}
     
     return UJSONResponse(return_result)
 
 # .....................................................................................................................
 
-def dbserver_reset_all(request):
+def remove_all_cameras(request):
     
     ''' Extra-nuclear option!!! Completely removes all data from mongo and image data from storage '''
     
@@ -175,6 +184,9 @@ def dbserver_reset_all(request):
     correct_password = "pf"
     if sanity_check != correct_password:
         return not_allowed_response("Wrong password. Database reset cancelled!")
+    
+    # Start timing
+    t_start = perf_counter()
     
     # Clear all database entries, except the system ones
     ignore_db_names = {"admin", "local", "config"}
@@ -192,7 +204,16 @@ def dbserver_reset_all(request):
     rmtree(base_image_path, ignore_errors = True)
     os.makedirs(base_image_path, exist_ok = True)
     
-    return UJSONResponse({"reset": True, "data_removed": data_removed, "images_removed": images_removed})
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    
+    # Build output for feedback
+    return_result = {"data_removed": data_removed,
+                     "images_removed": images_removed,
+                     "time_taken_ms": time_taken_ms}
+    
+    return UJSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................
@@ -266,10 +287,10 @@ def build_misc_routes():
     misc_routes = \
     [
      Route("/", root_page),
-     Route("/get-all-camera-names", cameras_get_all_names),
      Route("/is-alive", is_alive_check),
-     Route("/delete-all/{camera_select:str}/{password:str}", camera_delete_all),
-     Route("/this/is/dangerous/but/reset-all/{password:str}", dbserver_reset_all)
+     Route("/get-all-camera-names", cameras_get_all_names),
+     Route("/remove/one-camera/{camera_select:str}/{password:str}", remove_one_camera),
+     Route("/remove/all-cameras/{password:str}", remove_all_cameras)
     ]
     
     return misc_routes
@@ -294,6 +315,4 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Scrap
 
-# TODO:
-# - remove object data index-setting (from get-all-names route) to a better spot obj data posting?)
 
