@@ -49,6 +49,8 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+from time import perf_counter
+
 from local.lib.mongo_helpers import connect_to_mongo
 from local.lib.timekeeper_utils import time_to_epoch_ms,get_deletion_by_days_to_keep_timing
 from local.lib.response_helpers import first_of_query, no_data_response
@@ -237,6 +239,9 @@ def caminfo_delete_by_days_to_keep(request):
     # Get timing needed to handle deletions
     oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = get_deletion_by_days_to_keep_timing(days_to_keep)
     
+    # Start timing
+    t_start = perf_counter()
+    
     # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
     # Find oldest camera info that we need to keep (would have occurred before deletion target time)
     
@@ -269,9 +274,16 @@ def caminfo_delete_by_days_to_keep(request):
     collection_ref = get_camera_info_collection(camera_select)
     delete_response = collection_ref.delete_many(filter_dict)
     
+    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+    
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    
     # Build output to provide feedback about deletion
     return_result = {"deletion_datetime": deletion_datetime_str,
                      "deletion_epoch_ms": oldest_allowed_ems,
+                     "time_taken_ms": time_taken_ms,
                      "mongo_response": delete_response}
     
     return UJSONResponse(return_result)
