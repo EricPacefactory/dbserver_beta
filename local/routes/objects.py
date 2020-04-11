@@ -49,6 +49,8 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+from time import perf_counter
+
 from local.lib.mongo_helpers import connect_to_mongo
 from local.lib.timekeeper_utils import time_to_epoch_ms, get_deletion_by_days_to_keep_timing
 from local.lib.response_helpers import first_of_query, bad_request_response, no_data_response
@@ -88,7 +90,7 @@ def objects_get_newest_metadata(request):
 
 # .....................................................................................................................
 
-def objects_get_ids_at_time(request):
+def objects_get_ids_at_target_time(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
@@ -166,7 +168,7 @@ def objects_get_one_metadata_by_id(request):
 
 # .....................................................................................................................
 
-def objects_get_many_metadata_at_time(request):
+def objects_get_many_metadata_at_target_time(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
@@ -221,6 +223,59 @@ def objects_get_many_metadata_by_time_range(request):
 
 # .....................................................................................................................
 
+def objects_count_at_target_time(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_time = request.path_params["target_time"]
+    target_time = int(target_time) if target_time.isnumeric() else target_time
+    target_ems = time_to_epoch_ms(target_time)
+    
+    # Build query
+    query_dict = {"first_epoch_ms": {"$lte": target_ems}, "final_epoch_ms": {"$gte": target_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    collection_ref = get_object_collection(camera_select)
+    query_result = collection_ref.count_documents(query_dict, projection_dict)
+    
+    # Convert to dictionary with count
+    return_result = {"count": int(query_result)}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def objects_count_by_time_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert epoch inputs to integers, if needed
+    start_time = int(start_time) if start_time.isnumeric() else start_time
+    end_time = int(end_time) if end_time.isnumeric() else end_time
+    
+    # Convert times to epoch values for db lookup
+    start_ems = time_to_epoch_ms(start_time)
+    end_ems = time_to_epoch_ms(end_time)
+    
+    # Build query
+    query_dict = {"first_epoch_ms": {"$lt": end_ems}, "final_epoch_ms": {"$gt": start_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    collection_ref = get_object_collection(camera_select)
+    query_result = collection_ref.count_documents(query_dict, projection_dict)
+    
+    # Convert to dictionary with count
+    return_result = {"count": int(query_result)}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
 def objects_delete_by_days_to_keep(request):
     
     # Get information from route url
@@ -230,6 +285,9 @@ def objects_delete_by_days_to_keep(request):
     # Get timing needed to handle deletions
     oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = get_deletion_by_days_to_keep_timing(days_to_keep)
     
+    # Start timing
+    t_start = perf_counter()
+    
     # Build filter
     target_field = "final_epoch_ms"
     filter_dict = {target_field: {"$lt": oldest_allowed_ems}}
@@ -238,9 +296,14 @@ def objects_delete_by_days_to_keep(request):
     collection_ref = get_object_collection(camera_select)
     delete_response = collection_ref.delete_many(filter_dict)
     
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    
     # Build output to provide feedback about deletion
     return_result = {"deletion_datetime": deletion_datetime_str,
                      "deletion_epoch_ms": oldest_allowed_ems,
+                     "time_taken_ms": time_taken_ms,
                      "mongo_response": delete_response}
     
     return UJSONResponse(return_result)
@@ -288,11 +351,13 @@ def build_object_routes():
     object_routes = \
     [
      Route(obj_url("/get-newest-metadata"), objects_get_newest_metadata),
-     Route(obj_url("/get-ids-list/by-time-target/{target_time}"), objects_get_ids_at_time),
+     Route(obj_url("/get-ids-list/by-time-target/{target_time}"), objects_get_ids_at_target_time),
      Route(obj_url("/get-ids-list/by-time-range/{start_time}/{end_time}"), objects_get_ids_by_time_range),
      Route(obj_url("/get-one-metadata/by-id/{object_full_id:int}"), objects_get_one_metadata_by_id),
-     Route(obj_url("/get-many-metadata/by-time-target/{target_time}"), objects_get_many_metadata_at_time),
+     Route(obj_url("/get-many-metadata/by-time-target/{target_time}"), objects_get_many_metadata_at_target_time),
      Route(obj_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), objects_get_many_metadata_by_time_range),
+     Route(obj_url("/count/by-time-target/{target_time}"), objects_count_at_target_time),
+     Route(obj_url("/count/by-time-range/{start_time}/{end_time}"), objects_count_by_time_range),
      Route(obj_url("/delete/by-cutoff/{days_to_keep:int}"), objects_delete_by_days_to_keep),
      Route(obj_url("/set-indexing"), objects_set_indexing)
     ]
