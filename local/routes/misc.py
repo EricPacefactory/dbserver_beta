@@ -82,9 +82,10 @@ def root_page(request):
                  "<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"]
     for each_camera_name in camera_names_list:
         caminfo_url = "/{}/camerainfo/get-newest-camera-info".format(each_camera_name)
+        snap_md_url = "/{}/snapshots/get-newest-metadata".format(each_camera_name)
         newest_image_url = "/{}/snapshots/get-newest-image".format(each_camera_name)
-        img_html = "<a href='{}'><img src='{}' alt='Missing image data!'></a>".format(caminfo_url, newest_image_url)
-        camera_html = "<h3>{}</h3>".format(each_camera_name.replace("_", " "))
+        img_html = "<a href='{}'><img src='{}' alt='Missing image data!'></a>".format(snap_md_url, newest_image_url)
+        camera_html = "<h3><a href='{}'>{}</a></h3>".format(caminfo_url, each_camera_name.replace("_", " "))
         html_list += [camera_html, img_html, "<br><br>"]
     
     # Finally build the full html string to output
