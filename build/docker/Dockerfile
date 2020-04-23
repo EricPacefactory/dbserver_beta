@@ -28,11 +28,11 @@ ENV DBSERVER_IMAGE_FOLDER_PATH      $HOME/images_dbserver
 #%% Setup python
 
 # Work with files outside of the root fs
-WORKDIR $HOME/realtime
+WORKDIR $HOME/dbserver
 
 # Install python requirements
 COPY requirements.txt $HOME/dbserver
-RUN pip3 install -r requirements.txt
+RUN pip3 install -r $HOME/dbserver/requirements.txt
 
 
 # -----------------------------------------------------------------------------
