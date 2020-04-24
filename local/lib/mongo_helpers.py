@@ -112,6 +112,7 @@ def connect_to_mongo(connection_timeout_ms = 4000, max_connection_attempts = 15)
     
     # Repeatedly try to connect to MongoDB
     try:
+        is_connected = False
         for k in range(max_connection_attempts):
             is_connected, server_info = check_mongo_connection(mongo_client)
             if is_connected:
@@ -126,8 +127,7 @@ def connect_to_mongo(connection_timeout_ms = 4000, max_connection_attempts = 15)
             sleep(3)
         
         # Print additional warning indicator if we fail to connect after repeated attempts
-        failed_to_connect = (k >= (max_connection_attempts - 1))
-        if failed_to_connect:
+        if not is_connected:
             print("",
                   "Connection attempts to database failed!",
                   "Server will start up anyways, but requests may not work...", sep = "\n")
