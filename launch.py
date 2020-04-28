@@ -107,7 +107,6 @@ if __name__ == "__main__":
 #%% Scrap
 
 # TODO
-# - setup to work within docker
 # - add mongo client connection cycling (script shouldn't just end if a connection isn't made!!)
 # - consider using websockets? Esp. for posting/retrieving image data
 
