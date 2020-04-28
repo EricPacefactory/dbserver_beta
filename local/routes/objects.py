@@ -321,12 +321,34 @@ def objects_set_indexing(request):
     camera_select = request.path_params["camera_select"]
     collection_ref = get_object_collection(camera_select)
     
-    # HACKY: Assign object timing index every time this route is called... Should really be done when posting?
-    first_resp = collection_ref.create_index("first_epoch_ms")
-    final_resp = collection_ref.create_index("final_epoch_ms")
+    # Hard-code keys to be indexed
+    first_epoch_ms_index = "first_epoch_ms"
+    final_epoch_ms_index = "final_epoch_ms"
+    
+    # Start timing
+    t_start = perf_counter()
+    
+    # First check if the index is already set
+    current_index_info_dict = collection_ref.index_information()
+    first_is_set = any(first_epoch_ms_index in each_key for each_key in current_index_info_dict.keys())
+    final_is_set = any(final_epoch_ms_index in each_key for each_key in current_index_info_dict.keys())
+    indexes_already_set = (first_is_set and final_is_set)
+    if indexes_already_set:
+        return_result = {"already_set": True}
+        return UJSONResponse(return_result)
+    
+    # Set indexes on target fields if we haven't already
+    first_resp = collection_ref.create_index(first_epoch_ms_index)
+    final_resp = collection_ref.create_index(final_epoch_ms_index)
+    
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
     
     # Build response for debugging
-    return_result = {"index_response": [first_resp, final_resp]}
+    return_result = {"indexes_now_set": True,
+                     "time_taken_ms": time_taken_ms,
+                     "mongo_responses": [first_resp, final_resp]}
     
     return UJSONResponse(return_result)
 
