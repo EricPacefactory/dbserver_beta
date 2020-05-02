@@ -78,8 +78,7 @@ def root_page(request):
     camera_names_list = [each_name for each_name in all_db_names_list if each_name not in ignore_db_names]
     
     # Build html line by line for each camera to show some sample data
-    html_list = ["<title>DB Server</title>", 
-                 "<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"]
+    html_list = ["<title>DB Server</title>", "<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"]
     for each_camera_name in camera_names_list:
         caminfo_url = "/{}/camerainfo/get-newest-camera-info".format(each_camera_name)
         snap_md_url = "/{}/snapshots/get-newest-metadata".format(each_camera_name)
@@ -87,6 +86,11 @@ def root_page(request):
         img_html = "<a href='{}'><img src='{}' alt='Missing image data!'></a>".format(snap_md_url, newest_image_url)
         camera_html = "<h3><a href='{}'>{}</a></h3>".format(caminfo_url, each_camera_name.replace("_", " "))
         html_list += [camera_html, img_html, "<br><br>"]
+    
+    # In special case of no cameras, include text to indicate it!
+    no_cameras = (len(camera_names_list) == 0)
+    if no_cameras:
+        html_list += ["<h4>No camera data!</h4>"]
     
     # Finally build the full html string to output
     html_resp = "\n".join(html_list)
