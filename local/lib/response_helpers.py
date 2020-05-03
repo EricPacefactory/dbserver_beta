@@ -74,35 +74,51 @@ def first_of_query(query_result, return_if_missing = None):
 
 # .....................................................................................................................
 
-def no_data_response(error_message):
+def no_data_response(error_message, additional_response_dict = None):
     
     ''' Helper function to respond when there is no data '''
+    
+    response_dict = {"error": error_message}
+    if additional_response_dict is not None:
+        response_dict.update(additional_response_dict)
     
     return UJSONResponse({"error": error_message}, status_code = HTTP_404_NOT_FOUND)
 
 # .....................................................................................................................
 
-def bad_request_response(error_message):
+def bad_request_response(error_message, additional_response_dict = None):
     
     ''' Helper function for bad requests '''
+    
+    response_dict = {"error": error_message}
+    if additional_response_dict is not None:
+        response_dict.update(additional_response_dict)
     
     return UJSONResponse({"error": error_message}, status_code = HTTP_400_BAD_REQUEST)
 
 # .....................................................................................................................
 
-def not_allowed_response(error_message):
+def not_allowed_response(error_message, additional_response_dict = None):
     
     ''' Helper function for requests doing something they shouldn't (e.g. trying to save an existing entry) '''
     
-    return UJSONResponse({"error": error_message}, status_code = HTTP_405_METHOD_NOT_ALLOWED)
+    response_dict = {"error": error_message}
+    if additional_response_dict is not None:
+        response_dict.update(additional_response_dict)
+        
+    return UJSONResponse(response_dict, status_code = HTTP_405_METHOD_NOT_ALLOWED)
 
 # .....................................................................................................................
 
-def post_success_response(success_message = True):
+def post_success_response(success_message = True, additional_response_dict = None):
     
     ''' Helper function for post requests, when data is successfully added to the db '''
     
-    return UJSONResponse({"success": success_message}, status_code = HTTP_201_CREATED)
+    response_dict = {"success": success_message}
+    if additional_response_dict is not None:
+        response_dict.update(additional_response_dict)
+        
+    return UJSONResponse(response_dict, status_code = HTTP_201_CREATED)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
