@@ -84,13 +84,14 @@ def post_metadata(collection_name):
         
         # Get the camera selection from the url path, and send off the data!
         camera_select = request.path_params["camera_select"]
-        post_success = post_many_to_mongo(mclient, camera_select, collection_name, post_data)
+        post_success, mongo_response = post_many_to_mongo(mclient, camera_select, collection_name, post_data)
         
         # Return an error response if there was a problem posting 
         # Hard-coded: assuming the issue is with duplicate entries
         if not post_success:
+            additional_response_dict = {"mongo_response": mongo_response}
             error_message = "Error posting metadata. Entries likely exist already!"
-            return not_allowed_response(error_message)
+            return not_allowed_response(error_message, additional_response_dict)
         
         return post_success_response()
     
