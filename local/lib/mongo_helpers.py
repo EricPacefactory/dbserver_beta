@@ -148,17 +148,22 @@ def post_one_to_mongo(mongo_client, database_name, collection_name, data_to_inse
     
     # Try to post the data
     post_success = False
+    mongo_response = {}
     try:
         collection_ref.insert_one(data_to_insert)
         post_success = True
-    except pymongo.errors.DuplicateKeyError:
-        pass
+        
+    except pymongo.errors.DuplicateKeyError as dupe_key_error:
+        cleaned_details = dupe_key_error.details
+        cleaned_details.pop("writeErrors")
+        mongo_response = {"error": "duplicate key error",
+                          "details": cleaned_details}
     
-    return post_success
+    return post_success, mongo_response
 
 # .....................................................................................................................
 
-def post_many_to_mongo(mongo_client, database_name, collection_name, data_to_insert, ordered_data = False):
+def post_many_to_mongo(mongo_client, database_name, collection_name, data_to_insert):
     
     ''' Helper function which is able to post many entries into mongodb at once '''
     
@@ -168,13 +173,26 @@ def post_many_to_mongo(mongo_client, database_name, collection_name, data_to_ins
     # Try to post the data
     data_to_insert_list = convert_to_many(data_to_insert)
     post_success = False
+    mongo_response = {}
     try:
-        collection_ref.insert_many(data_to_insert_list, ordered = ordered_data)
+        # Insert many without ordering
+        # Note that duplicate entries will cause a BulkWriteError,
+        #   however, using un-ordered insert means all non-duplicate entries will still be inserted!
+        collection_ref.insert_many(data_to_insert_list, ordered = False)
         post_success = True
-    except pymongo.errors.BulkWriteError:
-        pass
+        
+    except pymongo.errors.BulkWriteError as bulk_write_error:
+        # In this case, duplicates exist, but un-ordered insert means all non-duplicates will still succeed
+        post_success = False
+        cleaned_details = bulk_write_error.details
+        cleaned_details.pop("writeErrors")
+        mongo_response = {"error": "bulk write error",
+                          "details": cleaned_details}
+        
+    except Exception as err:
+        mongo_response = {"error": str(err)}
     
-    return post_success
+    return post_success, mongo_response
 
 # .....................................................................................................................
 
