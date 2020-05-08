@@ -103,7 +103,7 @@ def get_utc_tzinfo():
 
 # .....................................................................................................................
 
-def parse_isoformat_string(isoformat_datetime_str):
+def isoformat_to_datetime(isoformat_datetime_str):
     
     '''
     Function for parsing isoformat strings
@@ -139,6 +139,17 @@ def parse_isoformat_string(isoformat_datetime_str):
 
 # .....................................................................................................................
 
+def isoformat_to_epoch_ms(datetime_isoformat_string):
+    
+    '''
+    Helper function which first converts an isoformat datetime string into a python datetime object
+    then converts the datetime object into an epoch_ms value
+    '''
+    
+    return datetime_to_epoch_ms(isoformat_to_datetime(datetime_isoformat_string))
+
+# .....................................................................................................................
+
 def datetime_to_isoformat_string(input_datetime):
     
     '''
@@ -169,15 +180,15 @@ def epoch_ms_to_utc_datetime(epoch_ms):
     return dt.datetime.utcfromtimestamp(epoch_sec).replace(tzinfo = dt.timezone.utc)
 
 # .....................................................................................................................
-    
-def isoformat_to_epoch_ms(datetime_isoformat_string):
+
+def epoch_ms_to_isoformat(epoch_ms):
     
     ''' 
-    Helper function which first converts an isoformat datetime string into a python datetime object
-    then converts the datetime object into an epoch_ms value
+    Helper function which first converts an epoch_ms value into a python datetime object
+    then converts the datetime object into an isoformat string
     '''
     
-    return datetime_to_epoch_ms(parse_isoformat_string(datetime_isoformat_string))
+    return datetime_to_isoformat_string(epoch_ms_to_utc_datetime(epoch_ms))
 
 # .................................................................................................................
 
