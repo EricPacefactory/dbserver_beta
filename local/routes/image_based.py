@@ -57,7 +57,8 @@ from shutil import rmtree
 from local.lib.mongo_helpers import connect_to_mongo
 from local.lib.timekeeper_utils import time_to_epoch_ms
 from local.lib.timekeeper_utils import get_deletion_by_days_to_keep_timing
-from local.lib.response_helpers import first_of_query, no_data_response, bad_request_response
+from local.lib.response_helpers import no_data_response, bad_request_response
+from local.lib.query_helpers import first_of_query
 from local.lib.image_pathing import build_base_image_pathing, build_image_pathing, get_old_image_folders_list
 
 from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse

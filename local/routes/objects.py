@@ -53,7 +53,8 @@ from time import perf_counter
 
 from local.lib.mongo_helpers import connect_to_mongo
 from local.lib.timekeeper_utils import time_to_epoch_ms, get_deletion_by_days_to_keep_timing
-from local.lib.response_helpers import first_of_query, bad_request_response, no_data_response
+from local.lib.response_helpers import bad_request_response, no_data_response
+from local.lib.query_helpers import first_of_query
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
