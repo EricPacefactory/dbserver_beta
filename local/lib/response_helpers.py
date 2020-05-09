@@ -49,28 +49,14 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+import ujson
+
 from starlette.responses import UJSONResponse 
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_405_METHOD_NOT_ALLOWED
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Response functions
-
-# .....................................................................................................................
-
-def first_of_query(query_result, return_if_missing = None):
-    
-    ''' 
-    Helper function for dealing with mongodb queries that are expected to return 1 result in a 'list' format
-    Also handles errors if there is no result
-    '''
-    
-    try:
-        return_result = next(query_result)
-    except StopIteration:
-        return_result = return_if_missing
-    
-    return return_result
 
 # .....................................................................................................................
 
@@ -119,6 +105,33 @@ def post_success_response(success_message = True, additional_response_dict = Non
         response_dict.update(additional_response_dict)
         
     return UJSONResponse(response_dict, status_code = HTTP_201_CREATED)
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Helpers
+
+# .....................................................................................................................
+
+def parse_ujson_response(ujson_response_object):
+    
+    # Check if the response is valid
+    response_status_code = ujson_response_object.status_code
+    if response_status_code == 404:
+        return no_data_response("data not found")
+    elif response_status_code != 200:
+        return bad_request_response("bad request")
+    
+    # If we get here, we got a valid response and need to parsee the json string data
+    response_json_data = ujson_response_object.body
+    response_dict = ujson.loads(response_json_data)
+    
+    return response_dict
+
+# .....................................................................................................................
+# .....................................................................................................................
 
 
 # ---------------------------------------------------------------------------------------------------------------------
