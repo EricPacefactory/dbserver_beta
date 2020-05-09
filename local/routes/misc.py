@@ -62,6 +62,42 @@ from starlette.routing import Route
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+#%% Helper functions
+
+# .....................................................................................................................
+
+def get_current_timing_info():
+    
+    # Add some additional info to html
+    local_time_as_dt = get_local_datetime()
+    local_time_as_isoformat = datetime_to_isoformat_string(local_time_as_dt)
+    local_time_as_ems = datetime_to_epoch_ms(local_time_as_dt)
+    
+    return local_time_as_dt, local_time_as_isoformat, local_time_as_ems
+
+# .....................................................................................................................
+
+def check_for_sanity(sanity_check):
+    
+    try:
+        provided_epoch_ms = int(sanity_check)
+    except ValueError:
+        return False
+    
+    # Get current timing info
+    _, _, current_epoch_ms = get_current_timing_info()
+    
+    # For clarity
+    one_hour_of_milliseconds = (60 * 60 * 1000)
+    cutoff_epoch_ms = (current_epoch_ms - one_hour_of_milliseconds)
+    passed_sanity_check = (provided_epoch_ms > cutoff_epoch_ms)
+    
+    return passed_sanity_check
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+# ---------------------------------------------------------------------------------------------------------------------
 #%% Create miscellaneous routes
 
 # .....................................................................................................................
@@ -130,12 +166,12 @@ def remove_one_camera(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    sanity_check = request.path_params["password"]
+    sanity_check = request.path_params["sanity_check"]
     
-    # Don't delete unless the correct 'password' was given, just to avoid accidents
-    correct_password = "pf"
-    if sanity_check != correct_password:
-        return not_allowed_response("Wrong password. Database reset cancelled!")
+    # Don't delete unless the sanity check if passed
+    passed_sanity_check = check_for_sanity(sanity_check)
+    if not passed_sanity_check:
+        return not_allowed_response("Failed sanity check... Camera removal cancelled!")
     
     # Don't allow deletion of built-in dbs
     ignore_db_names = {"admin", "local", "config"}
@@ -183,12 +219,12 @@ def remove_all_cameras(request):
     ''' Extra-nuclear option!!! Completely removes all data from mongo and image data from storage '''
     
     # Get information from route url
-    sanity_check = request.path_params["password"]
+    sanity_check = request.path_params["sanity_check"]
     
-    # Don't reset unless the correct 'password' was given, just to avoid accidents
-    correct_password = "pf"
-    if sanity_check != correct_password:
-        return not_allowed_response("Wrong password. Database reset cancelled!")
+    # Don't delete unless the sanity check if passed
+    passed_sanity_check = check_for_sanity(sanity_check)
+    if not passed_sanity_check:
+        return not_allowed_response("Failed sanity check... Camera removals cancelled!")
     
     # Start timing
     t_start = perf_counter()
@@ -261,9 +297,7 @@ def build_help_route(*route_name_and_list_tuples):
             html_list += ["", title_str, *line_strs_gen]
 
         # Add some additional info to html
-        local_dt = get_local_datetime()
-        isoformat_example = datetime_to_isoformat_string(local_dt)
-        epoch_ms_example = datetime_to_epoch_ms(local_dt)
+        _, isoformat_example, epoch_ms_example = get_current_timing_info()
         spacer_str = 10 * "&nbsp;"
         html_list += ["", "<br><br>",
                       "<h3>Note:</h3>",
@@ -294,8 +328,8 @@ def build_misc_routes():
      Route("/", root_page),
      Route("/is-alive", is_alive_check),
      Route("/get-all-camera-names", cameras_get_all_names),
-     Route("/remove/one-camera/{camera_select:str}/{password:str}", remove_one_camera),
-     Route("/remove/all-cameras/{password:str}", remove_all_cameras)
+     Route("/remove/one-camera/{camera_select:str}/{sanity_check}", remove_one_camera),
+     Route("/remove/all-cameras/{sanity_check}", remove_all_cameras)
     ]
     
     return misc_routes
