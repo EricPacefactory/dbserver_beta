@@ -156,6 +156,28 @@ def get_old_image_folders_list(base_image_folder_path, camera_select, image_fold
     return old_image_folders_path
 
 # .....................................................................................................................
+
+def get_old_snapshot_image_folders_list(base_image_folder_path, camera_select, oldest_allowed_ems):
+    
+    '''
+    Helper function which hard-codes the 'snapshots' image folder type,
+    to avoid callers having to know the correct string to use
+    '''
+    
+    return get_old_image_folders_list(base_image_folder_path, camera_select, "snapshots", oldest_allowed_ems)
+
+# .....................................................................................................................
+
+def get_old_background_image_folders_list(base_image_folder_path, camera_select, oldest_allowed_ems):
+    
+    '''
+    Helper function which hard-codes the 'backgrounds' image folder type,
+    to avoid callers having to know the correct string to use
+    '''
+    
+    return get_old_image_folders_list(base_image_folder_path, camera_select, "backgrounds", oldest_allowed_ems)
+
+# .....................................................................................................................
 # .....................................................................................................................
     
 # ---------------------------------------------------------------------------------------------------------------------
