@@ -67,7 +67,7 @@ from pymongo import DESCENDING
 
 # .....................................................................................................................
 
-def caminfo_get_all_info(request):
+def caminfo_get_all_metadata(request):
     
     '''
     Returns all camera info for a given camera. This will include entries from every time the camera is reset.
@@ -88,7 +88,7 @@ def caminfo_get_all_info(request):
 
 # .....................................................................................................................
 
-def caminfo_get_newest_info(request):
+def caminfo_get_newest_metadata(request):
     
     '''
     Returns the newest camera info entry for a specific camera.
@@ -119,9 +119,9 @@ def caminfo_get_newest_info(request):
 
 # .....................................................................................................................
 
-def caminfo_get_relative_info(request):
+def caminfo_get_relative_metadata(request):
     
-    ''' 
+    '''
     Returns the camera info that was most applicable to the given target time
     For example, 
       If a camera started on 2020-01-01, ran until 2020-01-05, then was restarted so the snapshots could be resized.
@@ -158,7 +158,7 @@ def caminfo_get_relative_info(request):
 
 # .....................................................................................................................
 
-def caminfo_get_many_info(request):
+def caminfo_get_many_metadata(request):
     
     '''
     Returns a list of camera info entries, given an input start and end time range.
@@ -249,11 +249,10 @@ def build_camerainfo_routes():
     caminfo_url = lambda caminfo_route: "".join(["/{camera_select:str}/camerainfo", caminfo_route])
     camerainfo_routes = \
     [
-     Route(caminfo_url("/get-all-camera-info"), caminfo_get_all_info),
-     Route(caminfo_url("/get-newest-camera-info"), caminfo_get_newest_info),
-     Route(caminfo_url("/get-relative-camera-info/by-time-target/{target_time}"), caminfo_get_relative_info),
-     Route(caminfo_url("/get-many-camera-info/by-time-range/{start_time}/{end_time}"), caminfo_get_many_info),
-     Route(caminfo_url("/delete/by-cutoff/{days_to_keep:int}"), caminfo_delete_by_days_to_keep)
+     Route(caminfo_url("/get-all-metadata"), caminfo_get_all_metadata),
+     Route(caminfo_url("/get-newest-metadata"), caminfo_get_newest_metadata),
+     Route(caminfo_url("/get-relative-metadata/by-time-target/{target_time}"), caminfo_get_relative_metadata),
+     Route(caminfo_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), caminfo_get_many_metadata)
     ]
     
     return camerainfo_routes
