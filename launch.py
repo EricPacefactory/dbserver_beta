@@ -18,9 +18,10 @@ from local.routes.posting import build_posting_routes
 from local.routes.deleting import build_deleting_routes
 from local.routes.logging import build_logging_routes
 from local.routes.misc import build_help_route, build_misc_routes
-from local.routes.objects import build_object_routes
 from local.routes.camerainfo import build_camerainfo_routes
-from local.routes.image_based import build_background_routes, build_snapshot_routes
+from local.routes.backgrounds import build_background_routes
+from local.routes.objects import build_object_routes
+from local.routes.snapshots import build_snapshot_routes
 from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
 from local.lib.quitters import ide_catcher
 
