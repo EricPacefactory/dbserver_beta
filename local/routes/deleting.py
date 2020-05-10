@@ -57,7 +57,7 @@ from local.lib.image_pathing import get_old_snapshot_image_folders_list, get_old
 
 from local.lib.mongo_helpers import connect_to_mongo
 from local.lib.timekeeper_utils import time_to_epoch_ms, epoch_ms_to_isoformat
-from local.lib.query_helpers import closest_entry_before_target_ems
+from local.lib.query_helpers import url_time_to_epoch_ms, get_closest_metadata_before_target_ems
 from local.lib.response_helpers import parse_ujson_response
 
 from local.routes.camerainfo import get_camera_info_collection
@@ -104,8 +104,7 @@ def delete_caminfos_by_cutoff(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    target_ems = time_to_epoch_ms(target_time)
+    target_ems = url_time_to_epoch_ms(target_time)
     
     # Start timing
     t_start = perf_counter()
@@ -113,7 +112,7 @@ def delete_caminfos_by_cutoff(request):
     # Find the closest camera info before the target time, since we'll want to keep it!
     epoch_ms_field = "_id"
     collection_ref = get_camera_info_collection(camera_select)
-    no_result, entry_dict = closest_entry_before_target_ems(collection_ref, target_ems, epoch_ms_field)
+    no_result, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field)
     
     # Determine the deletion time to use, depending on whether we found an older camera info
     oldest_allowed_ems = target_ems
@@ -144,8 +143,7 @@ def delete_backgrounds_by_cutoff(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    target_ems = time_to_epoch_ms(target_time)
+    target_ems = url_time_to_epoch_ms(target_time)
     
     # Start timing
     t_start = perf_counter()
@@ -156,7 +154,7 @@ def delete_backgrounds_by_cutoff(request):
     # Find the closest background before the target time, since we'll want to keep it!
     epoch_ms_field = "_id"
     collection_ref = get_background_collection(camera_select)
-    no_result, entry_dict = closest_entry_before_target_ems(collection_ref, target_ems, epoch_ms_field)
+    no_result, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field)
     
     # Determine the deletion time to use, depending on whether we found an older background
     oldest_allowed_ems = target_ems
@@ -202,8 +200,7 @@ def delete_objects_by_cutoff(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    oldest_allowed_ems = time_to_epoch_ms(target_time)
+    oldest_allowed_ems = url_time_to_epoch_ms(target_time)
     
     # Start timing
     t_start = perf_counter()
@@ -233,8 +230,7 @@ def delete_snapshots_by_cutoff(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    oldest_allowed_ems = time_to_epoch_ms(target_time)
+    oldest_allowed_ems = url_time_to_epoch_ms(target_time)
     
     # Start timing
     t_start = perf_counter()
@@ -301,8 +297,7 @@ def delete_serverlogs_by_cutoff(request):
     camera_select = request.path_params["camera_select"]
     log_type = request.path_params["log_type"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    oldest_allowed_ems = time_to_epoch_ms(target_time)
+    oldest_allowed_ems = url_time_to_epoch_ms(target_time)
     
     # Start timing
     t_start = perf_counter()
@@ -336,7 +331,7 @@ def delete_serverlogs_by_cutoff(request):
 
 def build_deleting_routes():
     
-    # Bundle all camera info routes
+    # Bundle all deleting routes
     delete_url = lambda delete_route: "".join(["/{camera_select:str}/delete", delete_route])
     deleting_routes = \
     [
@@ -372,5 +367,6 @@ if __name__ == "__main__":
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Scrap
+
 
 
