@@ -265,7 +265,7 @@ def remove_all_cameras(request):
 
 # .....................................................................................................................
 
-def build_help_route(*route_name_and_list_tuples):
+def build_help_route(routes_ordered_dict):
     
     '''
     Function used to create the help page. Should be used after creating all other routes 
@@ -286,7 +286,7 @@ def build_help_route(*route_name_and_list_tuples):
                      "<h1>Route Help</h1>"]
         
         # Build sections for each set of routes
-        for each_route_title, each_route_list in route_name_and_list_tuples:
+        for each_route_title, each_route_list in routes_ordered_dict.items():
             
             # First pull out the actual route url (as strings) for printing
             route_urls_gen = (each_route.path_format for each_route in each_route_list)
@@ -313,10 +313,10 @@ def build_help_route(*route_name_and_list_tuples):
         
         return HTMLResponse(html_resp)
     
-    # Build the output as a list, so it can be 'added' to other lists of routes more easily
-    help_route_as_list = [Route("/help", help_page)]
+    # Finally, associate a url with the help page output
+    help_route = Route("/help", help_page)
     
-    return help_route_as_list
+    return help_route
 
 # .....................................................................................................................
 
