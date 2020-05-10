@@ -12,7 +12,11 @@ Created on Fri Feb  7 17:04:16 2020
 
 import os
 
+from collections import OrderedDict
+
 from local.routes.posting import build_posting_routes
+from local.routes.deleting import build_deleting_routes
+from local.routes.logging import build_logging_routes
 from local.routes.misc import build_help_route, build_misc_routes
 from local.routes.objects import build_object_routes
 from local.routes.camerainfo import build_camerainfo_routes
@@ -31,34 +35,37 @@ from starlette.middleware.gzip import GZipMiddleware
 
 # .....................................................................................................................
 
+def build_all_routes():
+    
+    # Bundle all routes in order, with titles used to group routes on the help page
+    all_routes_dict = OrderedDict()
+    all_routes_dict["Miscellaneous"] = build_misc_routes()
+    all_routes_dict["Camera Info"] = build_camerainfo_routes()
+    all_routes_dict["Backgrounds"] = build_background_routes()
+    all_routes_dict["Snapshots"] = build_snapshot_routes()
+    all_routes_dict["Objects"] = build_object_routes()
+    all_routes_dict["POSTing"] = build_posting_routes()
+    all_routes_dict["Deleting"] = build_deleting_routes()
+    all_routes_dict["Logging"] = build_logging_routes()
+    
+    # Convert to a list of routes for use in starlette init
+    all_routes_list = []
+    for each_route_list in all_routes_dict.values():
+        all_routes_list += each_route_list
+    
+    # Build the help route using all routing info
+    help_route = build_help_route(all_routes_dict)
+    all_routes_list += [help_route]
+
+    return all_routes_list
+
+# .....................................................................................................................
+
 def asgi_startup():
     pass
 
 # .....................................................................................................................
 # .....................................................................................................................
-
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Create routes
-
-# Create all the working routes
-posting_routes = build_posting_routes()
-misc_routes = build_misc_routes()
-camerainfo_routes = build_camerainfo_routes()
-background_routes = build_background_routes()
-snapshot_routes = build_snapshot_routes()
-object_routes = build_object_routes()
-
-# Create the help route for listing simple documentation
-help_route_as_list = build_help_route(["Miscellaneous", misc_routes],
-                                      ["Camera Info", camerainfo_routes],
-                                      ["Backgrounds", background_routes],
-                                      ["Snapshots", snapshot_routes],
-                                      ["Objects", object_routes],
-                                      ["POSTing", posting_routes])
-
-# Gather all the routes to pass to the asgi application
-all_routes = posting_routes + misc_routes + help_route_as_list \
-             + camerainfo_routes + background_routes + snapshot_routes + object_routes
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -70,8 +77,9 @@ middleware = [Middleware(CORSMiddleware, allow_origins = ["*"], allow_methods = 
 
 # Initialize the asgi application
 enable_debug_mode = get_debugmode()
+all_routes_list = build_all_routes()
 asgi_app = Starlette(debug = enable_debug_mode, 
-                     routes = all_routes, 
+                     routes = all_routes_list,
                      middleware = middleware, 
                      on_startup = [asgi_startup])
 
