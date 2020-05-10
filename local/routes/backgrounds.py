@@ -49,27 +49,292 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from local.lib.mongo_helpers import connect_to_mongo
-from local.lib.timekeeper_utils import time_to_epoch_ms
+import base64
 
-from starlette.responses import UJSONResponse
+from local.lib.mongo_helpers import connect_to_mongo
+
+from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
+from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_newest_metadata
+from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
+from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
+
+from local.lib.response_helpers import no_data_response, bad_request_response
+
+from local.lib.image_pathing import build_base_image_pathing, build_background_image_pathing
+
+from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse
 from starlette.routing import Route
 
-from pymongo import ASCENDING
 
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Create image routes
+
+# .....................................................................................................................
+
+def bg_get_newest_image(request):
+        
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Get data from db
+    collection_ref = get_background_collection(camera_select)
+    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_newest_metadata:
+        error_message = "No image data for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    # Build pathing to the file
+    newest_ems = metadata_dict[EPOCH_MS_FIELD]
+    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, newest_ems)
+    if not os.path.exists(image_load_path):
+        error_message = "No image at {}".format(newest_ems)
+        return no_data_response(error_message)
+    
+    return FileResponse(image_load_path)
+
+# .....................................................................................................................
+
+def bg_get_one_image(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_ems = request.path_params["epoch_ms"]
+    
+    # Build pathing to the file
+    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, target_ems)
+    if not os.path.exists(image_load_path):
+        error_message = "No image at {}".format(target_ems)
+        return bad_request_response(error_message)
+    
+    return FileResponse(image_load_path)
+
+# .....................................................................................................................
+
+def bg_get_relative_image(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_ems = request.path_params["epoch_ms"]
+    
+    # Find the relative metadata entry, so we can grab the corresponding image path
+    collection_ref = get_background_collection(camera_select)
+    no_older_entry, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_older_entry:
+        error_message = "No metadata before time {}".format(target_ems)
+        return bad_request_response(error_message)
+    
+    # Build pathing to the file & handle missing file data
+    relative_ems = entry_dict[EPOCH_MS_FIELD]
+    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, relative_ems)
+    if not os.path.exists(image_load_path):
+        error_message = "No image at {}".format(relative_ems)
+        return bad_request_response(error_message)
+    
+    return FileResponse(image_load_path)
+
+# .....................................................................................................................
+
+def bg_get_one_b64_jpg(request):
+        
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_ems = request.path_params["epoch_ms"]
+    
+    # Build pathing to the file
+    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, target_ems)
+    if not os.path.exists(image_load_path):
+        error_message = "No image at {}".format(target_ems)
+        return bad_request_response(error_message)
+    
+    # Load the image file and convert to base64
+    with open(image_load_path, "rb") as image_data:
+        b64_image = base64.b64encode(image_data.read())
+    
+    return PlainTextResponse(b64_image)
+
+# .....................................................................................................................
+# .....................................................................................................................
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Create logging routes
+#%% Create metadata routes
 
 # .....................................................................................................................
+    
+def bg_get_newest_metadata(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Get data from db
+    collection_ref = get_background_collection(camera_select)
+    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_newest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(metadata_dict)
+
+# .....................................................................................................................
+
+def bg_get_bounding_times(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Request data from the db
+    collection_ref = get_background_collection(camera_select)
+    no_oldest_metadata, oldest_metadata_dict = get_oldest_metadata(collection_ref, EPOCH_MS_FIELD)
+    no_newest_metadata, newest_metadata_dict = get_newest_metadata(collection_ref, EPOCH_MS_FIELD)
+    
+    # Get results, if possible
+    if no_oldest_metadata or no_newest_metadata:
+        error_message = "No bounding times for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    # Pull out only the timing info from the min/max entries to minimize the data being sent
+    return_result = {"min_epoch_ms": oldest_metadata_dict["epoch_ms"],
+                     "max_epoch_ms": newest_metadata_dict["epoch_ms"],
+                     "min_datetime_isoformat": oldest_metadata_dict["datetime_isoformat"],
+                     "max_datetime_isoformat": newest_metadata_dict["datetime_isoformat"]}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def bg_get_epochs_by_time_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Get reference to collection to use for queries
+    collection_ref = get_background_collection(camera_select)
+    
+    # Get 'relative' entry along with range entries
+    no_older_entry, relative_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    range_epoch_ms_list = get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
+    
+    # Build output
+    epoch_ms_list = [] if no_older_entry else [relative_entry[EPOCH_MS_FIELD]]
+    epoch_ms_list += range_epoch_ms_list
+    
+    return UJSONResponse(epoch_ms_list)
+
+# .....................................................................................................................
+
+def bg_get_relative_metadata(request):
+    
+    ''' 
+    Returns the background metadata that was relevant at the given time (i.e. the background in use in realtime)
+    '''
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_time = request.path_params["target_time"]
+    target_ems = url_time_to_epoch_ms(target_time)
+    
+    # Find the relative metadata entry, so we can grab the corresponding image path
+    collection_ref = get_background_collection(camera_select)
+    no_older_entry, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_older_entry:
+        error_message = "No metadata before time {}".format(target_ems)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(entry_dict)
+
+# .....................................................................................................................
+
+def bg_get_one_metadata(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_ems = request.path_params["epoch_ms"]
+    
+    # Get data from db
+    collection_ref = get_background_collection(camera_select)
+    query_result = get_one_metadata(collection_ref, EPOCH_MS_FIELD, target_ems)
+
+    # Deal with missing data
+    if not query_result:
+        error_message = "No metadata at {}".format(target_ems)
+        return bad_request_response(error_message)
+    
+    return UJSONResponse(query_result)
+
+# .....................................................................................................................
+
+def bg_get_many_metadata(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Get reference to collection to use for queries
+    collection_ref = get_background_collection(camera_select)
+    
+    # Get 'relative' entry along with range entries
+    no_older_entry, relative_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    range_query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
+    
+    # Build output
+    return_result = [] if no_older_entry else [relative_entry]
+    return_result += list(range_query_result)
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def bg_count_by_time_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Get reference to collection to use for queries
+    collection_ref = get_background_collection(camera_select)
+    
+    # Get 'relative' entry, since it should be included in count
+    no_older_entry, _ = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    add_one_to_count = (not no_older_entry)
+    
+    # Get count over range of time
+    range_query_result = get_count_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
+    
+    # Tally up total
+    total_count = int(range_query_result) + int(add_one_to_count)
+    
+    # Build output
+    return_result = {"count": total_count}
+    
+    return UJSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Define call functions
+#%% Define build functions
 
 # .....................................................................................................................
 
@@ -79,18 +344,24 @@ def get_background_collection(camera_select):
 # .....................................................................................................................
 
 def build_background_routes():
-    '''
-    # Bundle all camera info routes
-    log_url = lambda log_route: "".join(["/{camera_select:str}/logs", log_route])
-    logging_routes = \
+    
+    # Bundle all background routes
+    bg_url = lambda bg_route: "".join(["/{camera_select:str}/backgrounds", bg_route])
+    background_routes = \
     [
-     Route(log_url("/get-all-log-types"), logs_get_all_types),
-     Route(log_url("/{log_type:str}/since/{target_time}"), logs_since_target_time),
-     Route(log_url("/{log_type:str}/by-time-range/{start_time}/{end_time}"), logs_by_time_range),
-     Route(log_url("/{log_type:str}/count/by-time-range/{start_time}/{end_time}"), logs_count_by_time_range)
+     Route(bg_url("/get-bounding-times"), bg_get_bounding_times),
+     Route(bg_url("/get-ems-list/by-time-range/{start_time}/{end_time}"), bg_get_epochs_by_time_range),
+     Route(bg_url("/get-newest-metadata"), bg_get_newest_metadata),
+     Route(bg_url("/get-one-metadata/by-ems/{epoch_ms:int}"), bg_get_one_metadata),
+     Route(bg_url("/get-relative-metadata/by-ems/{epoch_ms:int}"), bg_get_relative_metadata),
+     Route(bg_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), bg_get_many_metadata),
+     Route(bg_url("/get-newest-image"), bg_get_newest_image),
+     Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), bg_get_one_image),
+     Route(bg_url("/get-relative-image/by-ems/{epoch_ms:int}"), bg_get_relative_image),
+     Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), bg_get_one_b64_jpg),
+     Route(bg_url("/count/by-time-range/{start_time}/{end_time}"), bg_count_by_time_range)
     ]
-    '''
-    background_routes = []
+    
     return background_routes
 
 # .....................................................................................................................
@@ -99,6 +370,12 @@ def build_background_routes():
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
+
+# Establish (global!) variable used to access the persistent image folder
+IMAGE_FOLDER = build_base_image_pathing()
+
+# Hard-code (global!) variable used to indicate timing field
+EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
 mclient = connect_to_mongo()

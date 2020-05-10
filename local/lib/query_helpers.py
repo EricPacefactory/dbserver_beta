@@ -49,10 +49,12 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from pymongo import DESCENDING
+from local.lib.timekeeper_utils import time_to_epoch_ms
+
+from pymongo import ASCENDING, DESCENDING
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Response functions
+#%% Helper functions
 
 # .....................................................................................................................
 
@@ -72,7 +74,67 @@ def first_of_query(query_result, return_if_missing = None):
 
 # .....................................................................................................................
 
-def closest_entry_before_target_ems(collection_ref, target_ems, epoch_ms_field = "_id"):
+def url_time_to_epoch_ms(url_time):
+    
+    # For clarity
+    url_time_typed = int(url_time) if url_time.isnumeric() else url_time
+    ems_time = time_to_epoch_ms(url_time_typed)
+    
+    return ems_time
+
+# .....................................................................................................................
+
+def start_end_times_to_epoch_ms(start_time, end_time):
+    return url_time_to_epoch_ms(start_time), url_time_to_epoch_ms(end_time)
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Query functions
+
+# .....................................................................................................................
+
+def get_one_metadata(collection_ref, target_field, target_value):
+    
+    # Build query
+    query_dict = {target_field: target_value}
+    projection_dict = None
+    
+    # Request data from the db
+    query_result = collection_ref.find_one(query_dict, projection_dict)
+    
+    return query_result
+
+# .....................................................................................................................
+    
+def get_newest_metadata(collection_ref, epoch_ms_field = "_id"):
+    
+    # Request data from the db
+    query_result = collection_ref.find().sort(epoch_ms_field, DESCENDING).limit(1)
+    
+    # Pull out a single entry (there should only be one or it could be empty)
+    metadata_dict = first_of_query(query_result, return_if_missing = None)
+    no_newest_metadata = (metadata_dict is None)
+    
+    return no_newest_metadata, metadata_dict
+
+# .....................................................................................................................
+
+def get_oldest_metadata(collection_ref, epoch_ms_field = "_id"):
+    
+    # Request data from the db
+    query_result = collection_ref.find().sort(epoch_ms_field, ASCENDING).limit(1)
+    
+    # Pull out a single entry (there should only be one or it could be empty)
+    metadata_dict = first_of_query(query_result, return_if_missing = None)
+    no_oldest_metadata = (metadata_dict is None)
+    
+    return no_oldest_metadata, metadata_dict
+
+# .....................................................................................................................
+
+def get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field = "_id"):
     
     '''
     Helper function which returns the query result for the closest entry 
@@ -101,10 +163,52 @@ def closest_entry_before_target_ems(collection_ref, target_ems, epoch_ms_field =
     
     # Try to get the newest data from the given list
     # (which may be empty if there is no entry before the target time)
-    entry_dict = first_of_query(query_result, return_if_missing = None)
-    no_older_entry = (entry_dict is None)
+    metadata_dict = first_of_query(query_result, return_if_missing = None)
+    no_older_metadata = (metadata_dict is None)
         
-    return no_older_entry, entry_dict
+    return no_older_metadata, metadata_dict
+
+# .....................................................................................................................
+
+def get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id"):
+    
+    # Build query
+    query_dict = {epoch_ms_field: {"$gte": start_ems, "$lt": end_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, ASCENDING)
+    
+    return query_result
+
+# .....................................................................................................................
+
+def get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id"):
+    
+    # Build query
+    query_dict = {epoch_ms_field: {"$gte": start_ems, "$lt": end_ems}}
+    projection_dict = {}
+    
+    # Request data from the db
+    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, ASCENDING)
+    
+    # Pull out the epoch values into a list, instead of returning a list of dictionaries
+    epoch_ms_list = [each_entry[epoch_ms_field] for each_entry in query_result]    
+    
+    return epoch_ms_list
+
+# .....................................................................................................................
+
+def get_count_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id"):
+    
+    # Build query
+    query_dict = {epoch_ms_field: {"$gte": start_ems, "$lt": end_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    query_result = collection_ref.count_documents(query_dict, projection_dict)
+    
+    return query_result
 
 # .....................................................................................................................
 # .....................................................................................................................
