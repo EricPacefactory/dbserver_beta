@@ -119,6 +119,16 @@ def build_image_pathing(base_image_folder_path, camera_select, image_folder_type
 
 # .....................................................................................................................
 
+def build_snapshot_image_pathing(base_image_folder_path, camera_select, epoch_ms, create_folder_if_missing = False):
+    return build_image_pathing(base_image_folder_path, camera_select, "snapshots", epoch_ms, create_folder_if_missing)
+
+# .....................................................................................................................
+
+def build_background_image_pathing(base_image_folder_path, camera_select, epoch_ms, create_folder_if_missing = False):
+    return build_image_pathing(base_image_folder_path, camera_select, "backgrounds", epoch_ms, create_folder_if_missing)
+
+# .....................................................................................................................
+
 def get_old_image_folders_list(base_image_folder_path, camera_select, image_folder_type, oldest_allowed_ems):
     
     ''' Helper function which provides pathing to all image date folders (likely used for deletion!) '''
