@@ -544,65 +544,6 @@ def count_by_time_range(data_category):
 # .....................................................................................................................
 # .....................................................................................................................
 
-# ---------------------------------------------------------------------------------------------------------------------
-#%% Shared routes (image + metadata)
-
-# .....................................................................................................................
-
-def delete_by_days_to_keep(data_category):
-    
-    def inner_delete_by_days_to_keep(request):
-        
-        # Get information from route url
-        camera_select = request.path_params["camera_select"]
-        days_to_keep = request.path_params["days_to_keep"]
-        
-        # Get timing needed to handle deletions
-        oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = \
-        get_deletion_by_days_to_keep_timing(days_to_keep)
-        
-        # Start timing
-        t_start = perf_counter()
-        
-        # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-        # Delete metadata entries
-        
-        # Build filter
-        filter_dict = {"_id": {"$lt": oldest_allowed_ems}}
-        
-        # Send deletion command to the db
-        collection_ref = mclient[camera_select][data_category]
-        delete_response = collection_ref.delete_many(filter_dict)
-        
-        # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-        # Delete image files (after metadata, so metadata reference doesn't exist anymore)
-        
-        # Get list of all folder paths that hold data older than the allowable time
-        old_image_folder_paths = \
-        get_old_image_folders_list(IMAGE_FOLDER, camera_select, data_category, oldest_allowed_ems)
-        
-        # Delete all the image data!
-        for each_folder_path in old_image_folder_paths:
-            rmtree(each_folder_path, ignore_errors = True)
-        
-        # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-        
-        # End timing
-        t_end = perf_counter()
-        time_taken_ms = int(round(1000 * (t_end - t_start)))
-        
-        # Build output to provide feedback about deletion
-        return_result = {"deletion_datetime": deletion_datetime_str,
-                         "deletion_epoch_ms": oldest_allowed_ems,
-                         "time_taken_ms": time_taken_ms,
-                         "mongo_response": delete_response}
-        
-        return UJSONResponse(return_result)
-    
-    return inner_delete_by_days_to_keep
-
-# .....................................................................................................................
-# .....................................................................................................................
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define build functions

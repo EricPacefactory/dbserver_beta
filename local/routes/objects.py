@@ -277,40 +277,6 @@ def objects_count_by_time_range(request):
 
 # .....................................................................................................................
 
-def objects_delete_by_days_to_keep(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    days_to_keep = request.path_params["days_to_keep"]
-    
-    # Get timing needed to handle deletions
-    oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = get_deletion_by_days_to_keep_timing(days_to_keep)
-    
-    # Start timing
-    t_start = perf_counter()
-    
-    # Build filter
-    target_field = "final_epoch_ms"
-    filter_dict = {target_field: {"$lt": oldest_allowed_ems}}
-    
-    # Send deletion command to the db
-    collection_ref = get_object_collection(camera_select)
-    delete_response = collection_ref.delete_many(filter_dict)
-    
-    # End timing
-    t_end = perf_counter()
-    time_taken_ms = int(round(1000 * (t_end - t_start)))
-    
-    # Build output to provide feedback about deletion
-    return_result = {"deletion_datetime": deletion_datetime_str,
-                     "deletion_epoch_ms": oldest_allowed_ems,
-                     "time_taken_ms": time_taken_ms,
-                     "mongo_response": delete_response}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
 def objects_set_indexing(request):
     
     ''' 

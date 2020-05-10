@@ -230,66 +230,6 @@ def caminfo_get_many_info(request):
     return UJSONResponse(many_caminfo_list)
 
 # .....................................................................................................................
-
-def caminfo_delete_by_days_to_keep(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    days_to_keep = request.path_params["days_to_keep"]
-    
-    # Get timing needed to handle deletions
-    oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str = get_deletion_by_days_to_keep_timing(days_to_keep)
-    
-    # Start timing
-    t_start = perf_counter()
-    
-    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-    # Find oldest camera info that we need to keep (would have occurred before deletion target time)
-    
-    # Find the first camera info before the target deletion time (which we'll need to keep)
-    target_field = "_id"
-    query_dict = {target_field: {"$lte": oldest_allowed_ems}}
-    projection_dict = None
-    
-    # Request data from the db
-    collection_ref = get_camera_info_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
-    
-    # Try to get the newest data from the given list (which may be empty!)
-    return_result = first_of_query(query_result, return_if_missing = None)
-    empty_query = (return_result is None)
-    
-    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-    # Build & execute the deletion command
-    
-    # Build new deletion target time, if possible, which deletes all camera info before the oldest one we need to keep
-    oldest_camera_info_ems = oldest_allowed_ems
-    if not empty_query:
-        oldest_camera_info_ems = return_result["start_epoch_ms"] - 1000
-    
-    # Build filter
-    target_field = "_id"
-    filter_dict = {target_field: {"$lt": oldest_camera_info_ems}}
-    
-    # Send deletion command to the db
-    collection_ref = get_camera_info_collection(camera_select)
-    delete_response = collection_ref.delete_many(filter_dict)
-    
-    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-    
-    # End timing
-    t_end = perf_counter()
-    time_taken_ms = int(round(1000 * (t_end - t_start)))
-    
-    # Build output to provide feedback about deletion
-    return_result = {"deletion_datetime": deletion_datetime_str,
-                     "deletion_epoch_ms": oldest_allowed_ems,
-                     "time_taken_ms": time_taken_ms,
-                     "mongo_response": delete_response}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
 # .....................................................................................................................
 
 
