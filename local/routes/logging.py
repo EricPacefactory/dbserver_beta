@@ -54,17 +54,15 @@ from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
 from local.lib.timekeeper_utils import get_utc_datetime, datetime_to_epoch_ms
 
 from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
-from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_newest_metadata
-from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
-from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
+from local.lib.query_helpers import get_newest_metadata
+from local.lib.query_helpers import get_many_metadata_in_time_range
+from local.lib.query_helpers import get_count_in_time_range
 from local.lib.query_helpers import get_many_metadata_since_target_ems
 
 from local.lib.response_helpers import no_data_response
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
-
-from pymongo import ASCENDING
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -209,7 +207,7 @@ def get_logging_collection(camera_select, log_type):
 def build_logging_routes():
     
     # Bundle all camera info routes
-    log_url = lambda log_route: "".join(["/{camera_select:str}/logs", log_route])
+    log_url = lambda log_route: "".join(["/{camera_select:str}/serverlogs", log_route])
     logging_routes = \
     [
      Route(log_url("/get-all-log-types"), logs_get_all_types),
@@ -229,7 +227,7 @@ def build_logging_routes():
 #%% Global setup
 
 # Set shared log prefix indicator
-LOG_PREFIX = "logs-"
+LOG_PREFIX = "serverlogs-"
 
 # Hard-code (global!) variable used to indicate timing field
 EPOCH_MS_FIELD = "_id"

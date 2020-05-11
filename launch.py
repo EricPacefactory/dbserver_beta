@@ -47,7 +47,7 @@ def build_all_routes():
     all_routes_dict["Objects"] = build_object_routes()
     all_routes_dict["POSTing"] = build_posting_routes()
     all_routes_dict["Deleting"] = build_deleting_routes()
-    all_routes_dict["Logging"] = build_logging_routes()
+    all_routes_dict["Server Logs"] = build_logging_routes()
     
     # Convert to a list of routes for use in starlette init
     all_routes_list = []

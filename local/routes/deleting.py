@@ -340,7 +340,7 @@ def build_deleting_routes():
      Route(delete_url("/objects/by-cutoff/{target_time}"), delete_objects_by_cutoff),
      Route(delete_url("/snapshots/by-cutoff/{target_time}"), delete_snapshots_by_cutoff),
      Route(delete_url("/all-realtime/by-cutoff/{target_time}"), delete_allrealtime_by_cutoff),
-     Route(delete_url("/server-logs/{log_type:str}/by-cutoff/{target_time}"), delete_serverlogs_by_cutoff)
+     Route(delete_url("/serverlogs/{log_type:str}/by-cutoff/{target_time}"), delete_serverlogs_by_cutoff)
     ]
     
     return deleting_routes
