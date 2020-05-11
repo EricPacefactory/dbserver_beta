@@ -50,7 +50,16 @@ find_path_to_local()
 #%% Imports
 
 from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
-from local.lib.timekeeper_utils import time_to_epoch_ms, get_utc_datetime, datetime_to_epoch_ms
+
+from local.lib.timekeeper_utils import get_utc_datetime, datetime_to_epoch_ms
+
+from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
+from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_newest_metadata
+from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
+from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
+from local.lib.query_helpers import get_many_metadata_since_target_ems
+
+from local.lib.response_helpers import no_data_response
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
@@ -100,7 +109,26 @@ def logs_get_all_types(request):
     log_types_list = [each_name[type_idx:] for each_name in log_collections_iter]
     
     return UJSONResponse(log_types_list)
+
+# .....................................................................................................................
+
+def logs_get_newest(request):
     
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    log_type = request.path_params["log_type"]
+    
+    # Get data from db
+    collection_ref = get_logging_collection(camera_select, log_type)
+    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_newest_metadata:
+        error_message = "No {} log data for {}".format(log_type, camera_select)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(metadata_dict)
+
 # .....................................................................................................................
 
 def logs_since_target_time(request):
@@ -109,17 +137,11 @@ def logs_since_target_time(request):
     camera_select = request.path_params["camera_select"]
     log_type = request.path_params["log_type"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    target_ems = time_to_epoch_ms(target_time)
+    target_ems = url_time_to_epoch_ms(target_time)
     
-    # Build query
-    target_field = "_id"
-    query_dict = {target_field: {"$gte": target_ems}}
-    projection_dict = None
-    
-    # Request data from the db
+    # Get data from db
     collection_ref = get_logging_collection(camera_select, log_type)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
+    query_result = get_many_metadata_since_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
     
     return UJSONResponse(list(query_result))
 
@@ -133,22 +155,12 @@ def logs_by_time_range(request):
     start_time = request.path_params["start_time"]
     end_time = request.path_params["end_time"]
     
-    # Convert epoch inputs to integers, if needed
-    start_time = int(start_time) if start_time.isnumeric() else start_time
-    end_time = int(end_time) if end_time.isnumeric() else end_time
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
-    # Convert times to epoch values for db lookup
-    start_ems = time_to_epoch_ms(start_time)
-    end_ems = time_to_epoch_ms(end_time)
-    
-    # Build query
-    target_field = "_id"
-    query_dict = {target_field: {"$gte": start_ems, "$lt": end_ems}}
-    projection_dict = {}
-    
-    # Request data from the db
+    # Get data from db
     collection_ref = get_logging_collection(camera_select, log_type)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
+    query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
     return UJSONResponse(list(query_result))
 
@@ -162,22 +174,12 @@ def logs_count_by_time_range(request):
     start_time = request.path_params["start_time"]
     end_time = request.path_params["end_time"]
     
-    # Convert epoch inputs to integers, if needed
-    start_time = int(start_time) if start_time.isnumeric() else start_time
-    end_time = int(end_time) if end_time.isnumeric() else end_time
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
-    # Convert times to epoch values for db lookup
-    start_ems = time_to_epoch_ms(start_time)
-    end_ems = time_to_epoch_ms(end_time)
-    
-    # Build query
-    target_field = "_id"
-    query_dict = {target_field: {"$gte": start_ems, "$lt": end_ems}}
-    projection_dict = None
-    
-    # Request data from the db
+    # Get data from db
     collection_ref = get_logging_collection(camera_select, log_type)
-    query_result = collection_ref.count_documents(query_dict, projection_dict)
+    query_result = get_count_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
     # Convert to dictionary with count
     return_result = {"count": int(query_result)}
@@ -211,6 +213,7 @@ def build_logging_routes():
     logging_routes = \
     [
      Route(log_url("/get-all-log-types"), logs_get_all_types),
+     Route(log_url("/{log_type:str}/get-newest-metadata"), logs_get_newest),
      Route(log_url("/{log_type:str}/since/{target_time}"), logs_since_target_time),
      Route(log_url("/{log_type:str}/by-time-range/{start_time}/{end_time}"), logs_by_time_range),
      Route(log_url("/{log_type:str}/count/by-time-range/{start_time}/{end_time}"), logs_count_by_time_range)
@@ -227,6 +230,9 @@ def build_logging_routes():
 
 # Set shared log prefix indicator
 LOG_PREFIX = "logs-"
+
+# Hard-code (global!) variable used to indicate timing field
+EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
 mclient = connect_to_mongo()
