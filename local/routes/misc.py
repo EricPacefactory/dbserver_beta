@@ -116,7 +116,7 @@ def root_page(request):
     # Build html line by line for each camera to show some sample data
     html_list = ["<title>DB Server</title>", "<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"]
     for each_camera_name in camera_names_list:
-        caminfo_url = "/{}/camerainfo/get-newest-camera-info".format(each_camera_name)
+        caminfo_url = "/{}/camerainfo/get-newest-metadata".format(each_camera_name)
         snap_md_url = "/{}/snapshots/get-newest-metadata".format(each_camera_name)
         newest_image_url = "/{}/snapshots/get-newest-image".format(each_camera_name)
         img_html = "<a href='{}'><img src='{}' alt='Missing image data!'></a>".format(snap_md_url, newest_image_url)
