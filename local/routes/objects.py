@@ -69,28 +69,38 @@ from pymongo import ASCENDING
 
 # .....................................................................................................................
 
-def get_metadata_at_target_time(collection_ref, target_ems):
+def get_target_time_query_filter(target_ems):
+    return {FIRST_EPOCH_MS_FIELD: {"$lte": target_ems}, FINAL_EPOCH_MS_FIELD: {"$gte": target_ems}}
+
+# .....................................................................................................................
+
+def get_time_range_query_filter(start_ems, end_ems):
+    return {FIRST_EPOCH_MS_FIELD: {"$lt": end_ems}, FINAL_EPOCH_MS_FIELD: {"$gt": start_ems}}
+
+
+# .....................................................................................................................
+
+def find_by_target_time(collection_ref, target_ems, *, return_ids_only):
     
     # Build query
-    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lte": target_ems}, FINAL_EPOCH_MS_FIELD: {"$gte": target_ems}}
-    projection_dict = {}
+    filter_dict = get_target_time_query_filter(target_ems)
+    projection_dict = {} if return_ids_only else None
     
     # Request data from the db
-    query_result = collection_ref.find(query_dict, projection_dict)
+    query_result = collection_ref.find(filter_dict, projection_dict).sort(OBJ_ID_FIELD, ASCENDING)
     
     return query_result
 
 # .....................................................................................................................
 
-def get_metadata_by_time_range(collection_ref, start_ems, end_ems):
+def find_by_time_range(collection_ref, start_ems, end_ems, *, return_ids_only):
     
     # Build query
-    target_field = OBJ_ID_FIELD
-    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lt": end_ems}, FINAL_EPOCH_MS_FIELD: {"$gt": start_ems}}
-    projection_dict = {}
+    filter_dict = get_time_range_query_filter(start_ems, end_ems)
+    projection_dict = {} if return_ids_only else None
     
     # Request data from the db
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
+    query_result = collection_ref.find(filter_dict, projection_dict).sort(OBJ_ID_FIELD, ASCENDING)
     
     return query_result
 
@@ -129,7 +139,7 @@ def objects_get_ids_at_target_time(request):
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = get_metadata_at_target_time(collection_ref, target_ems)
+    query_result = find_by_target_time(collection_ref, target_ems, return_ids_only = True)
     
     # Convert to list of ids only
     return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
@@ -150,7 +160,7 @@ def objects_get_ids_by_time_range(request):
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = get_metadata_by_time_range(collection_ref, start_ems, end_ems)
+    query_result = find_by_time_range(collection_ref, start_ems, end_ems, return_ids_only = True)
     
     # Pull out the epoch values into a list, instead of returning a list of dictionaries
     return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
@@ -187,7 +197,7 @@ def objects_get_many_metadata_at_target_time(request):
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = get_metadata_at_target_time(collection_ref, target_ems)
+    query_result = find_by_target_time(collection_ref, target_ems, return_ids_only = False)
     
     # Convert to dictionary, with object ids as keys
     return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
@@ -208,7 +218,7 @@ def objects_get_many_metadata_by_time_range(request):
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = get_metadata_by_time_range(collection_ref, start_ems, end_ems)
+    query_result = find_by_time_range(collection_ref, start_ems, end_ems, return_ids_only = False)
     
     # Convert to dictionary, with object ids as keys
     return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
@@ -225,7 +235,7 @@ def objects_count_at_target_time(request):
     target_ems = url_time_to_epoch_ms(target_time)
     
     # Build query
-    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lte": target_ems}, FINAL_EPOCH_MS_FIELD: {"$gte": target_ems}}
+    query_dict = get_target_time_query_filter(target_ems)
     projection_dict = None
     
     # Request data from the db
@@ -250,7 +260,7 @@ def objects_count_by_time_range(request):
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
     # Build query
-    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lt": end_ems}, FINAL_EPOCH_MS_FIELD: {"$gt": start_ems}}
+    query_dict = get_time_range_query_filter(start_ems, end_ems)
     projection_dict = None
     
     # Request data from the db
