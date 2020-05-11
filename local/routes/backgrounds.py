@@ -53,7 +53,7 @@ import base64
 
 from local.lib.mongo_helpers import connect_to_mongo
 
-from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
+from local.lib.query_helpers import start_end_times_to_epoch_ms
 from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_newest_metadata
 from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
 from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
@@ -241,8 +241,7 @@ def bg_get_relative_metadata(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    target_time = request.path_params["target_time"]
-    target_ems = url_time_to_epoch_ms(target_time)
+    target_ems = request.path_params["epoch_ms"]
     
     # Find the relative metadata entry, so we can grab the corresponding image path
     collection_ref = get_background_collection(camera_select)
