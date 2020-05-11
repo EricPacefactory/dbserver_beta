@@ -49,17 +49,17 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from time import perf_counter
-
 from local.lib.mongo_helpers import connect_to_mongo
-from local.lib.timekeeper_utils import time_to_epoch_ms,get_deletion_by_days_to_keep_timing
+
+from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
+from local.lib.query_helpers import get_newest_metadata, get_oldest_metadata
+from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
+from local.lib.query_helpers import get_count_in_time_range
+
 from local.lib.response_helpers import no_data_response
-from local.lib.query_helpers import first_of_query
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
-
-from pymongo import DESCENDING
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -67,24 +67,26 @@ from pymongo import DESCENDING
 
 # .....................................................................................................................
 
-def caminfo_get_all_metadata(request):
+def caminfo_get_oldest_metadata(request):
     
     '''
-    Returns all camera info for a given camera. This will include entries from every time the camera is reset.
+    Returns oldest camera info entry. Should be an indication of when the camera first turned on,
+    though keep in mind, older entries may have been deleted as part of storage cleanup
     '''
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     
-    # Build query
-    query_dict = {}
-    projection_dict = None
-    
-    # Request data from the db
+    # Get data from db
     collection_ref = get_camera_info_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict)
+    no_oldest_metadata, metadata_dict = get_oldest_metadata(collection_ref, EPOCH_MS_FIELD)
     
-    return UJSONResponse(list(query_result))
+    # Handle missing metadata
+    if no_oldest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -100,22 +102,16 @@ def caminfo_get_newest_metadata(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     
-    # Build query
-    target_field = "_id"
-    query_dict = {}
-    projection_dict = None
-    
-    # Request data from the db
+    # Get data from db
     collection_ref = get_camera_info_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
+    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, EPOCH_MS_FIELD)
     
-    # Pull out only the newest entry & handle missing data
-    return_result = first_of_query(query_result)
-    if return_result is None:
-        error_message = "No camera info for {}".format(camera_select)
+    # Handle missing metadata
+    if no_newest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(return_result)
+    return UJSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -135,26 +131,18 @@ def caminfo_get_relative_metadata(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    target_ems = time_to_epoch_ms(target_time)
+    target_ems = url_time_to_epoch_ms(target_time)
     
-    # Build query
-    target_field = "_id"
-    query_dict = {target_field: {"$lte": target_ems}}
-    projection_dict = None
-    
-    # Request data from the db
+    # Find the relative metadata entry
     collection_ref = get_camera_info_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
+    no_older_entry, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
     
-    # Try to get the newest data from the given list (which may be empty!)
-    return_result = first_of_query(query_result, return_if_missing = None)
-    empty_query = (return_result is None)
-    if empty_query:
-        error_message = "No camera info before time {}".format(target_ems)
+    # Handle missing metadata
+    if no_older_entry:
+        error_message = "No metadata before time {}".format(target_ems)
         return no_data_response(error_message)
     
-    return UJSONResponse(return_result)
+    return UJSONResponse(entry_dict)
 
 # .....................................................................................................................
 
@@ -169,65 +157,56 @@ def caminfo_get_many_metadata(request):
     See 'caminfo_get_relative_info' route for more information.
     '''
     
-    # Initialize return value
-    many_caminfo_list = []
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Get reference to collection to use for queries
+    collection_ref = get_camera_info_collection(camera_select)
+    
+    # Get 'relative' entry along with range entries
+    no_older_entry, relative_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    range_query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
+    
+    # Build output
+    return_result = [] if no_older_entry else [relative_entry]
+    return_result += list(range_query_result)
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def caminfo_count_by_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     start_time = request.path_params["start_time"]
     end_time = request.path_params["end_time"]
     
-    # Convert epoch inputs to integers, if needed
-    start_time = int(start_time) if start_time.isnumeric() else start_time
-    end_time = int(end_time) if end_time.isnumeric() else end_time
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
-    # Convert times to epoch values for db lookup
-    start_ems = time_to_epoch_ms(start_time)
-    end_ems = time_to_epoch_ms(end_time)
-    
-    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-    # Find first camera info that occurred before the provided range (since it is relevant to the range)
-    
-    # Build query to get earliest camera info first (i.e. the closest info before the given start time)
-    target_field = "_id"
-    query_dict = {target_field: {"$lte": start_ems}}
-    projection_dict = None
-    
-    # Request data from the db
+    # Get reference to collection to use for queries
     collection_ref = get_camera_info_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
     
-    # Try to get the newest data from the given list (which may be empty!)
-    caminfo_before_start_time = first_of_query(query_result, return_if_missing = None)
-    have_early_caminfo = (caminfo_before_start_time is not None)
-    if have_early_caminfo:
-        many_caminfo_list.append(caminfo_before_start_time)
+    # Get 'relative' entry, since it should be included in count
+    no_older_entry, _ = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    add_one_to_count = (not no_older_entry)
     
-    # -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
-    # Find camera info within the provided range, and return it along with the first info before the range
+    # Get count over range of time
+    range_query_result = get_count_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
-    # Build query for camera info that was generated during the given time period
-    target_field = "_id"
-    query_dict = {target_field: {"$gt": start_ems, "$lt": end_ems}}
-    projection_dict = None
+    # Tally up total
+    total_count = int(range_query_result) + int(add_one_to_count)
     
-    # Request data from the db
-    collection_ref = get_camera_info_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict)
+    # Build output
+    return_result = {"count": total_count}
     
-    # Add entries that occured during the time range to the list
-    caminfo_in_range = list(query_result)
-    have_caminfo_in_range = (len(caminfo_in_range) > 0)
-    if have_caminfo_in_range:
-        many_caminfo_list += caminfo_in_range
-    
-    # Handle missing data case
-    no_caminfo_for_range = (len(many_caminfo_list) == 0)
-    if no_caminfo_for_range:
-        error_message = "No camera info for provided time range! Camera likely started later!"
-        return no_data_response(error_message)
-    
-    return UJSONResponse(many_caminfo_list)
+    return UJSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................
@@ -249,10 +228,11 @@ def build_camerainfo_routes():
     caminfo_url = lambda caminfo_route: "".join(["/{camera_select:str}/camerainfo", caminfo_route])
     camerainfo_routes = \
     [
-     Route(caminfo_url("/get-all-metadata"), caminfo_get_all_metadata),
+     Route(caminfo_url("/get-oldest-metadata"), caminfo_get_oldest_metadata),
      Route(caminfo_url("/get-newest-metadata"), caminfo_get_newest_metadata),
      Route(caminfo_url("/get-relative-metadata/by-time-target/{target_time}"), caminfo_get_relative_metadata),
-     Route(caminfo_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), caminfo_get_many_metadata)
+     Route(caminfo_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), caminfo_get_many_metadata),
+     Route(caminfo_url("/count/by-time-range/{start_time}/{end_time}"), caminfo_count_by_time_range),
     ]
     
     return camerainfo_routes
@@ -263,6 +243,9 @@ def build_camerainfo_routes():
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
+
+# Hard-code (global!) variable used to indicate timing field
+EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
 mclient = connect_to_mongo()
