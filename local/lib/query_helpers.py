@@ -170,6 +170,19 @@ def get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_
 
 # .....................................................................................................................
 
+def get_many_metadata_since_target_ems(collection_ref, target_ems, epoch_ms_field = "_id"):
+    
+    # Build query
+    query_dict = {epoch_ms_field: {"$gte": target_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, ASCENDING)
+    
+    return query_result
+
+# .....................................................................................................................
+
 def get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id"):
     
     # Build query
