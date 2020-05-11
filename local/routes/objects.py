@@ -52,15 +52,50 @@ find_path_to_local()
 from time import perf_counter
 
 from local.lib.mongo_helpers import connect_to_mongo
-from local.lib.timekeeper_utils import time_to_epoch_ms, get_deletion_by_days_to_keep_timing
+
+from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
+from local.lib.query_helpers import get_one_metadata, get_newest_metadata
+
 from local.lib.response_helpers import bad_request_response, no_data_response
-from local.lib.query_helpers import first_of_query
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
 
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING
 
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Create object-specific query helpers
+
+# .....................................................................................................................
+
+def get_metadata_at_target_time(collection_ref, target_ems):
+    
+    # Build query
+    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lte": target_ems}, FINAL_EPOCH_MS_FIELD: {"$gte": target_ems}}
+    projection_dict = {}
+    
+    # Request data from the db
+    query_result = collection_ref.find(query_dict, projection_dict)
+    
+    return query_result
+
+# .....................................................................................................................
+
+def get_metadata_by_time_range(collection_ref, start_ems, end_ems):
+    
+    # Build query
+    target_field = OBJ_ID_FIELD
+    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lt": end_ems}, FINAL_EPOCH_MS_FIELD: {"$gt": start_ems}}
+    projection_dict = {}
+    
+    # Request data from the db
+    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
+    
+    return query_result
+
+# .....................................................................................................................
+# .....................................................................................................................
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Create object routes
@@ -72,22 +107,16 @@ def objects_get_newest_metadata(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     
-    # Build query
-    target_field = "_id"
-    query_dict = {}
-    projection_dict = None
-    
-    # Request data from the db
+    # Get data from db
     collection_ref = get_object_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, DESCENDING).limit(1)
+    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, FINAL_EPOCH_MS_FIELD)
     
-    # Pull out a single entry (there should only be one)
-    return_result = first_of_query(query_result)
-    if return_result is None:
-        error_message = "No object metadata for {}".format(camera_select)
+    # Handle missing metadata
+    if no_newest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(return_result)
+    return UJSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -96,20 +125,14 @@ def objects_get_ids_at_target_time(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    target_ems = time_to_epoch_ms(target_time)
-    
-    # Build query
-    target_field = "_id"
-    query_dict = {"first_epoch_ms": {"$lte": target_ems}, "final_epoch_ms": {"$gte": target_ems}}
-    projection_dict = {}
+    target_ems = url_time_to_epoch_ms(target_time)
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict)
+    query_result = get_metadata_at_target_time(collection_ref, target_ems)
     
     # Convert to list of ids only
-    return_result = [each_entry[target_field] for each_entry in query_result]
+    return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
     
     return UJSONResponse(return_result)
 
@@ -122,25 +145,15 @@ def objects_get_ids_by_time_range(request):
     start_time = request.path_params["start_time"]
     end_time = request.path_params["end_time"]
     
-    # Convert epoch inputs to integers, if needed
-    start_time = int(start_time) if start_time.isnumeric() else start_time
-    end_time = int(end_time) if end_time.isnumeric() else end_time
-    
-    # Convert times to epoch values for db lookup
-    start_ems = time_to_epoch_ms(start_time)
-    end_ems = time_to_epoch_ms(end_time)
-    
-    # Build query
-    target_field = "_id"
-    query_dict = {"first_epoch_ms": {"$lt": end_ems}, "final_epoch_ms": {"$gt": start_ems}}
-    projection_dict = {}
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict).sort(target_field, ASCENDING)
+    query_result = get_metadata_by_time_range(collection_ref, start_ems, end_ems)
     
     # Pull out the epoch values into a list, instead of returning a list of dictionaries
-    return_result = [each_entry[target_field] for each_entry in query_result]
+    return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
     
     return UJSONResponse(return_result)
 
@@ -152,13 +165,9 @@ def objects_get_one_metadata_by_id(request):
     camera_select = request.path_params["camera_select"]
     object_full_id = int(request.path_params["object_full_id"])
     
-    # Build query
-    query_dict = {"_id": object_full_id}
-    projection_dict = None
-    
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = collection_ref.find_one(query_dict, projection_dict)
+    query_result = get_one_metadata(collection_ref, OBJ_ID_FIELD, object_full_id)
     
     # Deal with missing data
     if not query_result:
@@ -174,20 +183,14 @@ def objects_get_many_metadata_at_target_time(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    target_ems = time_to_epoch_ms(target_time)
-    
-    # Build query
-    query_dict = {"first_epoch_ms": {"$lte": target_ems}, "final_epoch_ms": {"$gte": target_ems}}
-    projection_dict = None
+    target_ems = url_time_to_epoch_ms(target_time)
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict)
+    query_result = get_metadata_at_target_time(collection_ref, target_ems)
     
     # Convert to dictionary, with object ids as keys
-    filter_key = "full_id"
-    return_result = {each_result[filter_key]: each_result for each_result in query_result}
+    return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
     
     return UJSONResponse(return_result)
 
@@ -200,25 +203,15 @@ def objects_get_many_metadata_by_time_range(request):
     start_time = request.path_params["start_time"]
     end_time = request.path_params["end_time"]
     
-    # Convert epoch inputs to integers, if needed
-    start_time = int(start_time) if start_time.isnumeric() else start_time
-    end_time = int(end_time) if end_time.isnumeric() else end_time
-    
-    # Convert times to epoch values for db lookup
-    start_ems = time_to_epoch_ms(start_time)
-    end_ems = time_to_epoch_ms(end_time)
-    
-    # Build query
-    query_dict = {"first_epoch_ms": {"$lt": end_ems}, "final_epoch_ms": {"$gt": start_ems}}
-    projection_dict = None
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
     # Request data from the db
     collection_ref = get_object_collection(camera_select)
-    query_result = collection_ref.find(query_dict, projection_dict)
+    query_result = get_metadata_by_time_range(collection_ref, start_ems, end_ems)
     
     # Convert to dictionary, with object ids as keys
-    filter_key = "full_id"
-    return_result = {each_result[filter_key]: each_result for each_result in query_result}
+    return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
     
     return UJSONResponse(return_result)
 
@@ -229,11 +222,10 @@ def objects_count_at_target_time(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_time = request.path_params["target_time"]
-    target_time = int(target_time) if target_time.isnumeric() else target_time
-    target_ems = time_to_epoch_ms(target_time)
+    target_ems = url_time_to_epoch_ms(target_time)
     
     # Build query
-    query_dict = {"first_epoch_ms": {"$lte": target_ems}, "final_epoch_ms": {"$gte": target_ems}}
+    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lte": target_ems}, FINAL_EPOCH_MS_FIELD: {"$gte": target_ems}}
     projection_dict = None
     
     # Request data from the db
@@ -254,16 +246,11 @@ def objects_count_by_time_range(request):
     start_time = request.path_params["start_time"]
     end_time = request.path_params["end_time"]
     
-    # Convert epoch inputs to integers, if needed
-    start_time = int(start_time) if start_time.isnumeric() else start_time
-    end_time = int(end_time) if end_time.isnumeric() else end_time
-    
-    # Convert times to epoch values for db lookup
-    start_ems = time_to_epoch_ms(start_time)
-    end_ems = time_to_epoch_ms(end_time)
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
     # Build query
-    query_dict = {"first_epoch_ms": {"$lt": end_ems}, "final_epoch_ms": {"$gt": start_ems}}
+    query_dict = {FIRST_EPOCH_MS_FIELD: {"$lt": end_ems}, FINAL_EPOCH_MS_FIELD: {"$gt": start_ems}}
     projection_dict = None
     
     # Request data from the db
@@ -289,8 +276,8 @@ def objects_set_indexing(request):
     collection_ref = get_object_collection(camera_select)
     
     # Hard-code keys to be indexed
-    first_epoch_ms_index = "first_epoch_ms"
-    final_epoch_ms_index = "final_epoch_ms"
+    first_epoch_ms_index = FIRST_EPOCH_MS_FIELD
+    final_epoch_ms_index = FINAL_EPOCH_MS_FIELD
     
     # Start timing
     t_start = perf_counter()
@@ -358,6 +345,11 @@ def build_object_routes():
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
+
+# Hard-code (global!) variables used to indicate timing field
+OBJ_ID_FIELD = "_id"
+FIRST_EPOCH_MS_FIELD = "first_epoch_ms"
+FINAL_EPOCH_MS_FIELD = "final_epoch_ms"
 
 # Connection to mongoDB
 mclient = connect_to_mongo()
