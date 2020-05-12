@@ -220,11 +220,11 @@ def time_to_epoch_ms(time_value):
 # .....................................................................................................................
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Deletion timing functions
+#%% Timing delta functions
 
 # .....................................................................................................................
 
-def get_local_datetime_in_past(num_days_backward):
+def get_utc_datetime_in_past(num_days_in_past):
     
     '''
     Helper function for getting a datetime from several days ago. Mostly intended for deletion/time cut-offs
@@ -232,30 +232,42 @@ def get_local_datetime_in_past(num_days_backward):
     '''
     
     # Make sure days backward is greater than 0
-    num_days_backward = max(0, num_days_backward)
+    num_days_in_past = max(0, num_days_in_past)
+    
+    # Calculate the datetime from several days ago
+    current_utc_dt = get_utc_datetime()
+    past_utc_dt = current_utc_dt - dt.timedelta(days = num_days_in_past)
+    
+    return past_utc_dt
+
+# .....................................................................................................................
+
+def get_local_datetime_in_past(num_days_in_past):
+    
+    '''
+    Helper function for getting a datetime from several days ago. Mostly intended for deletion/time cut-offs
+    Returns a datetime object
+    '''
+    
+    # Make sure days backward is greater than 0
+    num_days_in_past = max(0, num_days_in_past)
     
     # Calculate the datetime from several days ago
     current_dt = get_local_datetime()
-    past_dt = current_dt - dt.timedelta(days = num_days_backward)
+    past_dt = current_dt - dt.timedelta(days = num_days_in_past)
     
     return past_dt
 
 # .....................................................................................................................
 
-def get_deletion_by_days_to_keep_timing(days_to_keep):
+def add_days_to_datetime(input_datetime, num_days_to_add):
     
     '''
-    Helper function which returns timing info needed for 'delete by days to keep' functions
-    Returns:
-        oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str
+    Helper function for offseting a datetime by a specified number of days. Can be negative!
+    Returns a datetime object
     '''
     
-    # Figure out the current day
-    oldest_allowed_dt = get_local_datetime_in_past(days_to_keep)
-    oldest_allowed_ems = datetime_to_epoch_ms(oldest_allowed_dt)
-    deletion_datetime_str = oldest_allowed_dt.strftime(DATETIME_FORMAT)
-    
-    return oldest_allowed_dt, oldest_allowed_ems, deletion_datetime_str
+    return input_datetime + dt.timedelta(days = num_days_to_add)
 
 # .....................................................................................................................
 # .....................................................................................................................
