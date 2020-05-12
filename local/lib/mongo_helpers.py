@@ -207,7 +207,44 @@ def convert_to_many(data_to_insert):
 
 # .....................................................................................................................
 # .....................................................................................................................
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Mongo client helpers
+
+# .....................................................................................................................
+
+def get_camera_names_list(mongo_client):
     
+    ''' Helper function which gets all camera names (equiv. to database names, not including mongo built-ins) '''
+    
+    # Request data from all dbs
+    all_db_names_list = mongo_client.list_database_names()
+    
+    # Remove built-in databases
+    ignore_db_names = {"admin", "local", "config"}
+    camera_names_list = [each_name for each_name in all_db_names_list if each_name not in ignore_db_names]
+    
+    return camera_names_list
+
+# .....................................................................................................................
+
+def get_collection_names_list(mongo_client, camera_select):
+    
+    ''' Helper function which returns a list of collection names, for a given camera '''
+    
+    return mongo_client[camera_select].list_collection_names()
+
+# .....................................................................................................................
+
+def remove_camera_entry(mongo_client, camera_select):
+    
+    ''' Helper function which removes a camera entry from the database '''
+    
+    return mongo_client.drop_database(camera_select)
+
+# .....................................................................................................................
+# .....................................................................................................................
+
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Demo
 
