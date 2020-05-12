@@ -84,7 +84,7 @@ def post_metadata(collection_name):
         
         # Get the camera selection from the url path, and send off the data!
         camera_select = request.path_params["camera_select"]
-        post_success, mongo_response = post_many_to_mongo(mclient, camera_select, collection_name, post_data)
+        post_success, mongo_response = post_many_to_mongo(MCLIENT, camera_select, collection_name, post_data)
         
         # Return an error response if there was a problem posting 
         # Hard-coded: assuming the issue is with duplicate entries
@@ -144,20 +144,6 @@ def post_image(image_category):
     return post_image_by_category
 
 # .....................................................................................................................
-
-# Bundle all data posting routes
-post_url = lambda post_route: "".join(["/{camera_select:str}", post_route])
-post_data_routes = \
-[
- Route(post_url("/bdb/metadata/camerainfo"), post_metadata("camerainfo"), methods=["POST"]),
- Route(post_url("/bdb/metadata/snapshots"), post_metadata("snapshots"), methods=["POST"]),
- Route(post_url("/bdb/metadata/objects"), post_metadata("objects"), methods=["POST"]),
- Route(post_url("/bdb/metadata/backgrounds"), post_metadata("backgrounds"), methods=["POST"]),
- Route(post_url("/bdb/image/snapshots/{epoch_ms:int}"), post_image("snapshots"), methods=["POST"]),
- Route(post_url("/bdb/image/backgrounds/{epoch_ms:int}"), post_image("backgrounds"), methods=["POST"])
-]
-
-# .....................................................................................................................
 # .....................................................................................................................
 
 
@@ -193,7 +179,7 @@ def build_posting_routes():
 IMAGE_FOLDER = build_base_image_pathing()
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------
