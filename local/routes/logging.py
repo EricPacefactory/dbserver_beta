@@ -49,7 +49,7 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
+from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo, get_collection_names_list
 
 from local.lib.timekeeper_utils import get_utc_datetime, datetime_to_epoch_ms
 
@@ -98,8 +98,8 @@ def logs_get_all_types(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     
-    db_ref = MCLIENT[camera_select]
-    all_collection_names = db_ref.list_collection_names()
+    # Extract only the logging related collection names
+    all_collection_names = get_collection_names_list(MCLIENT, camera_select)
     log_collections_iter = (each_name for each_name in all_collection_names if each_name.startswith(LOG_PREFIX))
     
     # Remove the prefix from each of the logging collections to get the type name to return

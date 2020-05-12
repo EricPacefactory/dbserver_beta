@@ -53,6 +53,7 @@ from time import perf_counter
 from shutil import rmtree
 
 from local.lib.mongo_helpers import check_mongo_connection, connect_to_mongo
+from local.lib.mongo_helpers import get_camera_names_list, remove_camera_entry
 from local.lib.timekeeper_utils import get_local_datetime, datetime_to_isoformat_string, datetime_to_epoch_ms
 from local.lib.image_pathing import build_base_image_pathing, build_camera_image_path
 from local.lib.response_helpers import not_allowed_response
@@ -106,12 +107,8 @@ def root_page(request):
     
     ''' Home page route. Meant to provide (rough) UI to inspect available data '''
     
-    # Request data from all dbs
-    all_db_names_list = MCLIENT.list_database_names()
-    
-    # Remove built-in databases
-    ignore_db_names = {"admin", "local", "config"}
-    camera_names_list = [each_name for each_name in all_db_names_list if each_name not in ignore_db_names]
+    # Request camera (database) names
+    camera_names_list = get_camera_names_list(MCLIENT)
     
     # Build html line by line for each camera to show some sample data
     html_list = ["<title>DB Server</title>", "<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"]
@@ -149,14 +146,9 @@ def cameras_get_all_names(request):
     
     ''' Route which is intended to return a list of camera names '''
     
-    # Request data from all dbs
-    all_db_names_list = MCLIENT.list_database_names()
+    camera_names_list = get_camera_names_list(MCLIENT)
     
-    # Remove built-in databases
-    ignore_db_names = {"admin", "local", "config"}
-    return_result = [each_name for each_name in all_db_names_list if each_name not in ignore_db_names]
-    
-    return UJSONResponse(return_result)
+    return UJSONResponse(camera_names_list)
 
 # .....................................................................................................................
 
@@ -186,18 +178,18 @@ def remove_one_camera(request):
     camera_image_folder_path = build_camera_image_path(base_image_path, camera_select)
     
     # Check if camera is in our list
-    all_db_names = MCLIENT.list_database_names()
-    camera_in_mongo_before = (camera_select in all_db_names)
+    camera_names_before_list = get_camera_names_list(MCLIENT)
+    camera_in_mongo_before = (camera_select in camera_names_before_list)
     camera_in_image_storage_before = (os.path.exists(camera_image_folder_path))
     camera_exists_before = (camera_in_mongo_before or camera_in_image_storage_before)
     
     # Wipe out entire camera database and image folder, if possible
-    MCLIENT.drop_database(camera_select)
+    remove_camera_entry(MCLIENT, camera_select)
     rmtree(camera_image_folder_path, ignore_errors = True)
     
     # Check if the camera has been removed
-    all_db_names = MCLIENT.list_database_names()
-    camera_in_mongo_after = (camera_select in all_db_names)
+    camera_names_after_list = get_camera_names_list(MCLIENT)
+    camera_in_mongo_after = (camera_select in camera_names_after_list)
     camera_in_image_storage_after = (os.path.exists(camera_image_folder_path))
     camera_exists_after = (camera_in_mongo_after or camera_in_image_storage_after)
     
@@ -230,14 +222,9 @@ def remove_all_cameras(request):
     t_start = perf_counter()
     
     # Clear all database entries, except the system ones
-    ignore_db_names = {"admin", "local", "config"}
-    all_db_names = MCLIENT.list_database_names()
-    data_removed = []
-    for each_db_name in all_db_names:
-        if each_db_name in ignore_db_names:
-            continue
-        MCLIENT.drop_database(each_db_name)
-        data_removed.append(each_db_name)
+    camera_names_list = get_camera_names_list(MCLIENT)
+    for each_camera_name in camera_names_list:
+        remove_camera_entry(MCLIENT, each_camera_name)
     
     # Delete image folder (but re-create an empty folder)
     base_image_path = build_base_image_pathing()
@@ -250,7 +237,7 @@ def remove_all_cameras(request):
     time_taken_ms = int(round(1000 * (t_end - t_start)))
     
     # Build output for feedback
-    return_result = {"data_removed": data_removed,
+    return_result = {"data_removed": camera_names_list,
                      "images_removed": images_removed,
                      "time_taken_ms": time_taken_ms}
     
