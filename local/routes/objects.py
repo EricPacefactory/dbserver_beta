@@ -65,6 +65,39 @@ from pymongo import ASCENDING
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+#%% Create indexing functions
+
+# .....................................................................................................................
+
+def check_object_indexing(collection_ref):
+    
+    ''' Helper function which can be used to check if object indexing is already set '''
+    
+    current_index_info_dict = collection_ref.index_information()
+    first_is_set = any(FIRST_EPOCH_MS_FIELD in each_key for each_key in current_index_info_dict.keys())
+    final_is_set = any(FINAL_EPOCH_MS_FIELD in each_key for each_key in current_index_info_dict.keys())
+    indexes_already_set = (first_is_set and final_is_set)
+    
+    return indexes_already_set
+
+# .....................................................................................................................
+
+def set_object_indexing(collection_ref):
+    
+    ''' Helper function which can be used to set indexing on object collection '''
+    
+    first_resp = collection_ref.create_index(FIRST_EPOCH_MS_FIELD)
+    final_resp = collection_ref.create_index(FINAL_EPOCH_MS_FIELD)
+    
+    mongo_response_list = [first_resp, final_resp]
+    
+    return mongo_response_list
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 #%% Create object-specific query helpers
 
 # .....................................................................................................................
@@ -285,25 +318,17 @@ def objects_set_indexing(request):
     camera_select = request.path_params["camera_select"]
     collection_ref = get_object_collection(camera_select)
     
-    # Hard-code keys to be indexed
-    first_epoch_ms_index = FIRST_EPOCH_MS_FIELD
-    final_epoch_ms_index = FINAL_EPOCH_MS_FIELD
-    
     # Start timing
     t_start = perf_counter()
     
     # First check if the index is already set
-    current_index_info_dict = collection_ref.index_information()
-    first_is_set = any(first_epoch_ms_index in each_key for each_key in current_index_info_dict.keys())
-    final_is_set = any(final_epoch_ms_index in each_key for each_key in current_index_info_dict.keys())
-    indexes_already_set = (first_is_set and final_is_set)
+    indexes_already_set = check_object_indexing(collection_ref)
     if indexes_already_set:
         return_result = {"already_set": True}
         return UJSONResponse(return_result)
     
     # Set indexes on target fields if we haven't already
-    first_resp = collection_ref.create_index(first_epoch_ms_index)
-    final_resp = collection_ref.create_index(final_epoch_ms_index)
+    mongo_response_list = set_object_indexing(collection_ref)
     
     # End timing
     t_end = perf_counter()
@@ -312,7 +337,7 @@ def objects_set_indexing(request):
     # Build response for debugging
     return_result = {"indexes_now_set": True,
                      "time_taken_ms": time_taken_ms,
-                     "mongo_responses": [first_resp, final_resp]}
+                     "mongo_response_list": mongo_response_list}
     
     return UJSONResponse(return_result)
 
