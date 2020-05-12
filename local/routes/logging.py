@@ -70,7 +70,7 @@ from starlette.routing import Route
 
 # .....................................................................................................................
 
-def log_to_server(camera_select, log_type, log_data_dict):
+def log_to_server(mongo_client, camera_select, log_type, log_data_dict):
     
     # Get timestamp to use as a log id
     log_dt = get_utc_datetime()
@@ -80,7 +80,7 @@ def log_to_server(camera_select, log_type, log_data_dict):
     # Build log entry & send to mongo
     log_entry = {"_id": log_timestamp, "log_type": log_type, "log_data": log_data_dict}
     collection_name = get_log_collection_name(log_type)
-    post_success, mongo_response = post_one_to_mongo(mclient, camera_select, collection_name, log_entry)
+    post_success, mongo_response = post_one_to_mongo(mongo_client, camera_select, collection_name, log_entry)
     
     return post_success, mongo_response
 
@@ -98,7 +98,7 @@ def logs_get_all_types(request):
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     
-    db_ref = mclient[camera_select]
+    db_ref = MCLIENT[camera_select]
     all_collection_names = db_ref.list_collection_names()
     log_collections_iter = (each_name for each_name in all_collection_names if each_name.startswith(LOG_PREFIX))
     
@@ -200,7 +200,7 @@ def get_log_collection_name(log_type):
 
 def get_logging_collection(camera_select, log_type):
     collection_name = get_log_collection_name(log_type)
-    return mclient[camera_select][collection_name]
+    return MCLIENT[camera_select][collection_name]
 
 # .....................................................................................................................
 
@@ -233,7 +233,7 @@ LOG_PREFIX = "serverlogs-"
 EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------
