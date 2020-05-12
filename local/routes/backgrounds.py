@@ -338,7 +338,7 @@ def bg_count_by_time_range(request):
 # .....................................................................................................................
 
 def get_background_collection(camera_select):
-    return mclient[camera_select]["backgrounds"]
+    return MCLIENT[camera_select]["backgrounds"]
 
 # .....................................................................................................................
 
@@ -377,7 +377,7 @@ IMAGE_FOLDER = build_base_image_pathing()
 EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------

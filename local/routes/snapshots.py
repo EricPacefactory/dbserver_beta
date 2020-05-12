@@ -427,7 +427,7 @@ def snap_count_by_time_range(request):
 # .....................................................................................................................
 
 def get_snapshot_collection(camera_select):
-    return mclient[camera_select]["snapshots"]
+    return MCLIENT[camera_select]["snapshots"]
 
 # .....................................................................................................................
 
@@ -470,7 +470,7 @@ IMAGE_FOLDER = build_base_image_pathing()
 EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------

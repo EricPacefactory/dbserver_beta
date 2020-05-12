@@ -218,7 +218,7 @@ def caminfo_count_by_time_range(request):
 # .....................................................................................................................
 
 def get_camera_info_collection(camera_select):
-    return mclient[camera_select]["camerainfo"]
+    return MCLIENT[camera_select]["camerainfo"]
 
 # .....................................................................................................................
 
@@ -248,7 +248,7 @@ def build_camerainfo_routes():
 EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------

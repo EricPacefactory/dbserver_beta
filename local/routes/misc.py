@@ -107,7 +107,7 @@ def root_page(request):
     ''' Home page route. Meant to provide (rough) UI to inspect available data '''
     
     # Request data from all dbs
-    all_db_names_list = mclient.list_database_names()
+    all_db_names_list = MCLIENT.list_database_names()
     
     # Remove built-in databases
     ignore_db_names = {"admin", "local", "config"}
@@ -139,7 +139,7 @@ def is_alive_check(request):
     
     ''' Route used to check that this server is still up (before making a ton of requests for example) '''
     
-    mongo_is_connected, server_info_dict = check_mongo_connection(mclient)
+    mongo_is_connected, server_info_dict = check_mongo_connection(MCLIENT)
     
     return UJSONResponse({"dbserver": True, "mongo": mongo_is_connected})
 
@@ -150,7 +150,7 @@ def cameras_get_all_names(request):
     ''' Route which is intended to return a list of camera names '''
     
     # Request data from all dbs
-    all_db_names_list = mclient.list_database_names()
+    all_db_names_list = MCLIENT.list_database_names()
     
     # Remove built-in databases
     ignore_db_names = {"admin", "local", "config"}
@@ -186,17 +186,17 @@ def remove_one_camera(request):
     camera_image_folder_path = build_camera_image_path(base_image_path, camera_select)
     
     # Check if camera is in our list
-    all_db_names = mclient.list_database_names()
+    all_db_names = MCLIENT.list_database_names()
     camera_in_mongo_before = (camera_select in all_db_names)
     camera_in_image_storage_before = (os.path.exists(camera_image_folder_path))
     camera_exists_before = (camera_in_mongo_before or camera_in_image_storage_before)
     
     # Wipe out entire camera database and image folder, if possible
-    mclient.drop_database(camera_select)
+    MCLIENT.drop_database(camera_select)
     rmtree(camera_image_folder_path, ignore_errors = True)
     
     # Check if the camera has been removed
-    all_db_names = mclient.list_database_names()
+    all_db_names = MCLIENT.list_database_names()
     camera_in_mongo_after = (camera_select in all_db_names)
     camera_in_image_storage_after = (os.path.exists(camera_image_folder_path))
     camera_exists_after = (camera_in_mongo_after or camera_in_image_storage_after)
@@ -231,12 +231,12 @@ def remove_all_cameras(request):
     
     # Clear all database entries, except the system ones
     ignore_db_names = {"admin", "local", "config"}
-    all_db_names = mclient.list_database_names()
+    all_db_names = MCLIENT.list_database_names()
     data_removed = []
     for each_db_name in all_db_names:
         if each_db_name in ignore_db_names:
             continue
-        mclient.drop_database(each_db_name)
+        MCLIENT.drop_database(each_db_name)
         data_removed.append(each_db_name)
     
     # Delete image folder (but re-create an empty folder)
@@ -342,7 +342,7 @@ def build_misc_routes():
 #%% Global setup
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------

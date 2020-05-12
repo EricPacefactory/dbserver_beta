@@ -326,7 +326,7 @@ def objects_set_indexing(request):
 # .....................................................................................................................
 
 def get_object_collection(camera_select):
-    return mclient[camera_select]["objects"]
+    return MCLIENT[camera_select]["objects"]
 
 # .....................................................................................................................
 
@@ -362,7 +362,7 @@ FIRST_EPOCH_MS_FIELD = "first_epoch_ms"
 FINAL_EPOCH_MS_FIELD = "final_epoch_ms"
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------
