@@ -56,7 +56,7 @@ from local.lib.image_pathing import build_base_image_pathing
 from local.lib.image_pathing import get_old_snapshot_image_folders_list, get_old_background_image_folders_list
 
 from local.lib.mongo_helpers import connect_to_mongo
-from local.lib.timekeeper_utils import time_to_epoch_ms, epoch_ms_to_isoformat
+from local.lib.timekeeper_utils import epoch_ms_to_isoformat
 from local.lib.query_helpers import url_time_to_epoch_ms, get_closest_metadata_before_target_ems
 from local.lib.response_helpers import parse_ujson_response
 
@@ -285,7 +285,7 @@ def delete_allrealtime_by_cutoff(request):
     
     # Log results on the database itself
     camera_select = request.path_params["camera_select"]
-    log_to_server(camera_select, "delete", return_result)
+    log_to_server(MCLIENT, camera_select, "delete", return_result)
     
     return UJSONResponse(return_result)
 
@@ -356,7 +356,7 @@ def build_deleting_routes():
 IMAGE_FOLDER = build_base_image_pathing()
 
 # Connection to mongoDB
-mclient = connect_to_mongo()
+MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------
