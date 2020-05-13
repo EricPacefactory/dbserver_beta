@@ -24,45 +24,59 @@ The following command can be used to launch the server after installing requirem
 
 This should be called from the project root folder. Note that the launch script can be called using python as well, but the uvicorn call is recommended.
 
-## Configuration
+## Docker (manual use)
 
-There are a number of environment variables that can be used to alter the default configuration of the server. These are as follows:
+The dbserver can be (manually) launched through docker using the following instructions.
 
-`DBSERVER_IMAGE_FOLDER_PATH` (default: None)
+#### Build:
 
-`MONGO_PROTOCOL` (default: mongodb)
+From inside the dbserver folder:
 
-`MONGO_HOST` (default: localhost)
+`docker build -t dbserver_image -f ./build/docker/Dockerfile .`
 
-`MONGO_PORT` (default: 27017)
+This command will create a docker image (called dbserver_image) with all dependencies installed.
 
-`DBSERVER_PROTOCOL` (default: http)
+#### Run:
 
-`DBSERVER_HOST` (default: 0.0.0.0)
+From anywhere:
 
-`DBSERVER_PORT` (default 8050)
+```
+docker run -d \
+--network="host" \
+-v /tmp/images_dbserver:/home/scv2/images_dbserver \
+--name dbserver \
+dbserver_image
+```
 
-`DEBUG_MODE` (default: 1)
+This command will start up a container running the dbserver. The easiest way to confirm the system is running is by going to the dbserver url (default: `localhost:8050`). 
+
+Note that MongoDB should be running beforehand, since the dbserver will try to connect on startup! 
+
+Also note that the run command above will map persistent data into a temporary folder (`/tmp/images_dbserver`), this may be fine for testing/experimentation, but beware of data loss.
+
+---
+
+## Environment variables
+
+`DBSERVER_IMAGE_FOLDER_PATH` = (none, defaults to the project root folder)
+
+`MONGO_PROTOCOL` = mongodb
+
+`MONGO_HOST` = localhost
+
+`MONGO_PORT` = 27017
+
+`DBSERVER_PROTOCOL` = http
+
+`DBSERVER_HOST` = 0.0.0.0
+
+`DBSERVER_PORT` = 8050
+
+`DEBUG_MODE` = 1
+
+---
 
 
-
-## Use with Docker (manually)
-
-Note that the `pybase` docker image is needed to build the dbserver image (see the scv2_deploy files for the pybase image).
-
-To build the docker image, navigate one level outside of the dbserver project root folder. Assuming the folder is called `dbserver`, use the following command:
-
-`sudo docker build -t dbserver_image -f ./dbserver/build/docker/Dockerfile ./dbserver`
-
-To run the dbserver image in a container, use the following command:
-
-`sudo docker run -d --network="host" -v /tmp/images_dbserver:/images_dbserver --name dbserver_container dbserver_image`
-
-This should launch the dbserver on `http:localhost:8050`
-
-Note that the run command assumes the persistent data (images) will be stored in `/tmp/images_dbserver`
-
-This  mapping means that data will eventually be deleted automatically by your operating system (on reboot?). While this is convenient for quick tests, a more permanent folder path should be used if the data is not meant to be lost! However, if data persistance isn't an issue and you don't need to be able to check the image data directly, the entire volume mapping command can be left out (i.e. delete the `-v /tmp/images_dbserver:/images_dbserver` part of the command).
 
 ## Major TODOs
 
