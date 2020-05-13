@@ -49,7 +49,7 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from local.lib.timekeeper_utils import time_to_epoch_ms
+from local.lib.timekeeper_utils import any_time_type_to_epoch_ms
 
 from pymongo import ASCENDING, DESCENDING
 
@@ -78,7 +78,7 @@ def url_time_to_epoch_ms(url_time):
     
     # For clarity
     url_time_typed = int(url_time) if url_time.isnumeric() else url_time
-    ems_time = time_to_epoch_ms(url_time_typed)
+    ems_time = any_time_type_to_epoch_ms(url_time_typed)
     
     return ems_time
 
