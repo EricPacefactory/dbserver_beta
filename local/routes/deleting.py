@@ -56,7 +56,7 @@ from local.lib.image_pathing import build_base_image_pathing
 from local.lib.image_pathing import get_old_snapshot_image_folders_list, get_old_background_image_folders_list
 
 from local.lib.mongo_helpers import connect_to_mongo
-from local.lib.timekeeper_utils import epoch_ms_to_isoformat
+from local.lib.timekeeper_utils import epoch_ms_to_local_isoformat
 from local.lib.query_helpers import url_time_to_epoch_ms, get_closest_metadata_before_target_ems
 from local.lib.response_helpers import parse_ujson_response
 
@@ -128,7 +128,7 @@ def delete_caminfos_by_cutoff(request):
     time_taken_ms = int(round(1000 * (t_end - t_start)))
     
     # Build output to provide feedback about deletion
-    deletion_datetime_str = epoch_ms_to_isoformat(oldest_allowed_ems)
+    deletion_datetime_str = epoch_ms_to_local_isoformat(oldest_allowed_ems)
     return_result = {"deletion_datetime_isoformat": deletion_datetime_str,
                      "deletion_epoch_ms": oldest_allowed_ems,
                      "time_taken_ms": time_taken_ms,
@@ -185,7 +185,7 @@ def delete_backgrounds_by_cutoff(request):
     time_taken_ms = int(round(1000 * (t_end - t_start)))
     
     # Build output to provide feedback about deletion
-    deletion_datetime_str = epoch_ms_to_isoformat(oldest_allowed_ems)
+    deletion_datetime_str = epoch_ms_to_local_isoformat(oldest_allowed_ems)
     return_result = {"deletion_datetime_isoformat": deletion_datetime_str,
                      "deletion_epoch_ms": oldest_allowed_ems,
                      "time_taken_ms": time_taken_ms,
@@ -215,7 +215,7 @@ def delete_objects_by_cutoff(request):
     time_taken_ms = int(round(1000 * (t_end - t_start)))
     
     # Build output to provide feedback about deletion
-    deletion_datetime_str = epoch_ms_to_isoformat(oldest_allowed_ems)
+    deletion_datetime_str = epoch_ms_to_local_isoformat(oldest_allowed_ems)
     return_result = {"deletion_datetime_isoformat": deletion_datetime_str,
                      "deletion_epoch_ms": oldest_allowed_ems,
                      "time_taken_ms": time_taken_ms,
@@ -253,7 +253,7 @@ def delete_snapshots_by_cutoff(request):
     time_taken_ms = int(round(1000 * (t_end - t_start)))
     
     # Build output to provide feedback about deletion
-    deletion_datetime_str = epoch_ms_to_isoformat(oldest_allowed_ems)
+    deletion_datetime_str = epoch_ms_to_local_isoformat(oldest_allowed_ems)
     return_result = {"deletion_datetime_isoformat": deletion_datetime_str,
                      "deletion_epoch_ms": oldest_allowed_ems,
                      "time_taken_ms": time_taken_ms,
@@ -312,7 +312,7 @@ def delete_serverlogs_by_cutoff(request):
     time_taken_ms = int(round(1000 * (t_end - t_start)))
     
     # Build output to provide feedback about deletion
-    deletion_datetime_str = epoch_ms_to_isoformat(oldest_allowed_ems)
+    deletion_datetime_str = epoch_ms_to_local_isoformat(oldest_allowed_ems)
     return_result = {"deletion_datetime_isoformat": deletion_datetime_str,
                      "deletion_epoch_ms": oldest_allowed_ems,
                      "time_taken_ms": time_taken_ms,
