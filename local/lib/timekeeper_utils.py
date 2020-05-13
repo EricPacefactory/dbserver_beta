@@ -62,7 +62,7 @@ import datetime as dt
 # .....................................................................................................................
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Define functions
+#%% General functions
 
 # .....................................................................................................................
     
@@ -100,6 +100,13 @@ def get_utc_tzinfo():
     ''' Convenience function which returns a utc tzinfo object '''
     
     return dt.timezone.utc
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Isoformat conversion functions
 
 # .....................................................................................................................
 
@@ -149,6 +156,13 @@ def isoformat_to_epoch_ms(datetime_isoformat_string):
     return datetime_to_epoch_ms(isoformat_to_datetime(datetime_isoformat_string))
 
 # .....................................................................................................................
+# .....................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Datetime conversion functions
+
+# .....................................................................................................................
 
 def datetime_to_isoformat_string(input_datetime):
     
@@ -156,7 +170,7 @@ def datetime_to_isoformat_string(input_datetime):
     Converts a datetime object into an isoformat string
     Example:
         "2019-01-30T11:22:33+00:00.000000"
-        
+    
     Note: This function assumes the datetime object has timezone information (tzinfo)
     '''
     
@@ -171,28 +185,57 @@ def datetime_to_epoch_ms(input_datetime):
     return int(round(1000 * input_datetime.timestamp()))
 
 # .....................................................................................................................
+# .....................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Epoch conversion functions
+
+# .....................................................................................................................
 
 def epoch_ms_to_utc_datetime(epoch_ms):
     
     ''' Function which converts a millisecond epoch value into a utc datetime object '''
     
-    epoch_sec = epoch_ms / 1000.0    
-    return dt.datetime.utcfromtimestamp(epoch_sec).replace(tzinfo = dt.timezone.utc)
+    epoch_sec = epoch_ms / 1000.0
+    return dt.datetime.utcfromtimestamp(epoch_sec).replace(tzinfo = get_utc_tzinfo())
 
 # .....................................................................................................................
 
-def epoch_ms_to_isoformat(epoch_ms):
+def epoch_ms_to_local_datetime(epoch_ms):
     
-    ''' 
+    ''' Function which converts a millisecond epoch value into a datetime object with the local timezone '''
+    
+    epoch_sec = epoch_ms / 1000.0
+    return dt.datetime.fromtimestamp(epoch_sec).replace(tzinfo = get_local_tzinfo())
+
+# .....................................................................................................................
+
+def epoch_ms_to_utc_isoformat(epoch_ms):
+    
+    '''
     Helper function which first converts an epoch_ms value into a python datetime object
     then converts the datetime object into an isoformat string
+    The result will use a UTC timezone
     '''
     
     return datetime_to_isoformat_string(epoch_ms_to_utc_datetime(epoch_ms))
 
+# .....................................................................................................................
+
+def epoch_ms_to_local_isoformat(epoch_ms):
+    
+    '''
+    Helper function which first converts an epoch_ms value into a python datetime object
+    then converts the datetime object into an isoformat string
+    The result will use the local timezone
+    '''
+    
+    return datetime_to_isoformat_string(epoch_ms_to_local_datetime(epoch_ms))
+
 # .................................................................................................................
 
-def time_to_epoch_ms(time_value):
+def any_time_type_to_epoch_ms(time_value):
     
     # Decide how to handle the input time value based on it's type
     value_type = type(time_value)
@@ -305,9 +348,9 @@ def image_folder_names_to_epoch_ms(date_folder_name, hour_folder_name = None):
 
 def epoch_ms_to_image_folder_names(epoch_ms):
     
-    ''' 
+    '''
     Helper function used to provided consistent folder naming, based on input epoch_ms times
-    Returns: 
+    Returns:
         date_folder_name, hour_folder_name
     '''
     
@@ -340,7 +383,7 @@ if __name__ == "__main__":
     ex_ems = 800000000000
     ex_date_folder, ex_hour_folder = epoch_ms_to_image_folder_names(ex_ems)
     ex_start_ems, ex_end_ems = image_folder_names_to_epoch_ms(ex_date_folder, ex_hour_folder)
-    print("", 
+    print("",
           "  Input EMS: {}".format(ex_ems),
           "Date folder: {}".format(ex_date_folder),
           "Hour folder: {}".format(ex_hour_folder),
