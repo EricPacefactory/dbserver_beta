@@ -1,8 +1,8 @@
 # -----------------------------------------------------------------------------
 #%% Base setup
 
-# Start ubuntu-python base
-FROM pybase_image
+# Start with ubuntu-python base
+FROM pacefactory/scv2_ubuntupython_base:1.0.0
 
 
 # -----------------------------------------------------------------------------
