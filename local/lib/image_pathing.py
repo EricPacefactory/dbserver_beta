@@ -148,7 +148,7 @@ def get_old_image_folders_list(base_image_folder_path, camera_select, image_fold
         
         # Return the parent date folder path if the end of the day would be too old
         # (since all hours of the same day would also be too old!)
-        _, end_of_day_ems = image_folder_names_to_epoch_ms(each_date_name)
+        _, end_of_day_ems = image_folder_names_to_epoch_ms(each_date_name, hour_folder_name = "23")
         if end_of_day_ems < oldest_allowed_ems:
             old_image_folders_path.append(date_folder_path)
             continue

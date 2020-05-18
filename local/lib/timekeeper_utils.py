@@ -320,7 +320,7 @@ def add_days_to_datetime(input_datetime, num_days_to_add):
 
 # .....................................................................................................................
 
-def image_folder_names_to_epoch_ms(date_folder_name, hour_folder_name = None):
+def image_folder_names_to_epoch_ms(date_folder_name, hour_folder_name):
     
     '''
     Helper function used to generate an epoch_ms (utc) value from provided date/hour folder names.
@@ -329,9 +329,8 @@ def image_folder_names_to_epoch_ms(date_folder_name, hour_folder_name = None):
     '''
     
     # Get the starting datetime, based on the given date/hour folder names
-    no_hour = (hour_folder_name is None)
-    datetime_str = date_folder_name if no_hour else "{} {}".format(date_folder_name, hour_folder_name)
-    str_format = DATE_FORMAT if no_hour else "{} {}".format(DATE_FORMAT, HOUR_FORMAT)
+    datetime_str = "{} {}".format(date_folder_name, hour_folder_name)
+    str_format = "{} {}".format(DATE_FORMAT, HOUR_FORMAT)
     start_of_hour_dt_local = dt.datetime.strptime(datetime_str, str_format)
     
     # Convert start time to utc, since image folders are saved in this format
