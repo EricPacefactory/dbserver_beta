@@ -323,7 +323,7 @@ def add_days_to_datetime(input_datetime, num_days_to_add):
 def image_folder_names_to_epoch_ms(date_folder_name, hour_folder_name):
     
     '''
-    Helper function used to generate an epoch_ms (utc) value from provided date/hour folder names.
+    Helper function used to generate an epoch_ms (local) value from provided date/hour folder names.
     Returns:
         start_of_hour_epoch_ms, end_of_hour_epoch_ms
     '''
@@ -331,11 +331,11 @@ def image_folder_names_to_epoch_ms(date_folder_name, hour_folder_name):
     # Get the starting datetime, based on the given date/hour folder names
     datetime_str = "{} {}".format(date_folder_name, hour_folder_name)
     str_format = "{} {}".format(DATE_FORMAT, HOUR_FORMAT)
-    start_of_hour_dt_local = dt.datetime.strptime(datetime_str, str_format)
+    start_of_hour_dt_no_tz = dt.datetime.strptime(datetime_str, str_format)
     
-    # Convert start time to utc, since image folders are saved in this format
-    start_of_hour_dt_utc = start_of_hour_dt_local.replace(tzinfo = get_utc_tzinfo())
-    start_of_hour_epoch_ms = datetime_to_epoch_ms(start_of_hour_dt_utc)
+    # Make sure to explicitly use local timing, to hopefully avoid weird timezone errors
+    start_of_hour_dt_local = start_of_hour_dt_no_tz.replace(tzinfo = get_local_tzinfo())
+    start_of_hour_epoch_ms = datetime_to_epoch_ms(start_of_hour_dt_local)
     
     # Calculate the end of hour epoch_ms value
     ms_in_one_hour = 3600000    # (60 mins/hr * 60 sec/min * 1000 ms/sec)
@@ -354,7 +354,7 @@ def epoch_ms_to_image_folder_names(epoch_ms):
     '''
     
     # Convert provided epoch_ms value into a datetime, so we can create date + hour folder names from it
-    target_time_dt = epoch_ms_to_utc_datetime(epoch_ms)
+    target_time_dt = epoch_ms_to_local_datetime(epoch_ms)
     date_name = target_time_dt.strftime(DATE_FORMAT)
     hour_name = target_time_dt.strftime(HOUR_FORMAT)
     
