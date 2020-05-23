@@ -50,7 +50,7 @@ find_path_to_local()
 #%% Imports
 
 from time import perf_counter
-from shutil import rmtree
+from shutil import rmtree, disk_usage
 
 from local.lib.mongo_helpers import check_mongo_connection, connect_to_mongo
 from local.lib.mongo_helpers import get_camera_names_list, remove_camera_entry
@@ -75,6 +75,11 @@ def get_current_timing_info():
     local_time_as_ems = datetime_to_epoch_ms(local_time_as_dt)
     
     return local_time_as_dt, local_time_as_isoformat, local_time_as_ems
+
+# .....................................................................................................................
+
+def calculate_time_taken_ms(time_start, time_end):
+    return int(round(1000 * (time_end - time_start)))
 
 # .....................................................................................................................
 
@@ -152,6 +157,28 @@ def cameras_get_all_names(request):
 
 # .....................................................................................................................
 
+def get_disk_usage_for_images(request):
+    
+    ''' Route which returns info regarding the current disk (HDD/SSD) usage '''
+    
+    # Get disk usage based on the image folder path (may not account for mongo/metadata usage!)
+    t_start = perf_counter()
+    base_image_path = build_base_image_pathing()
+    total_bytes, used_bytes, free_bytes = disk_usage(base_image_path)
+    t_end = perf_counter()
+    
+    # Bundle returned data
+    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
+    return_result = {"total_bytes": total_bytes,
+                     "used_bytes": used_bytes,
+                     "free_bytes": free_bytes,
+                     "note": "Usage for folder containing images only! May not account for metadata storage",
+                     "time_taken_ms": time_taken_ms}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
 def remove_one_camera(request):
     
     ''' Nuclear route. Completely removes a camera (+ image data) from the system '''
@@ -195,7 +222,7 @@ def remove_one_camera(request):
     
     # End timing
     t_end = perf_counter()
-    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
     
     # Build output for feedback
     return_result = {"camera_exists_before": camera_exists_before,
@@ -234,7 +261,7 @@ def remove_all_cameras(request):
     
     # End timing
     t_end = perf_counter()
-    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
     
     # Build output for feedback
     return_result = {"data_removed": camera_names_list,
@@ -315,6 +342,7 @@ def build_misc_routes():
      Route("/", root_page),
      Route("/is-alive", is_alive_check),
      Route("/get-all-camera-names", cameras_get_all_names),
+     Route("/get-disk-usage", get_disk_usage_for_images),
      Route("/remove/one-camera/{camera_select:str}/{sanity_check}", remove_one_camera),
      Route("/remove/all-cameras/{sanity_check}", remove_all_cameras)
     ]
