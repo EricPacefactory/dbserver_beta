@@ -185,6 +185,14 @@ def datetime_to_epoch_ms(input_datetime):
     return int(round(1000 * input_datetime.timestamp()))
 
 # .....................................................................................................................
+
+def local_datetime_to_utc_datetime(local_datetime):
+    
+    ''' Convenience function for converting datetime objects from local timezones to utc '''
+    
+    return (local_datetime - local_datetime.utcoffset()).replace(tzinfo = get_utc_tzinfo())
+
+# .....................................................................................................................
 # .....................................................................................................................
 
 
