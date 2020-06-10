@@ -16,6 +16,25 @@ container_volume_path="/home/scv2/images_dbserver"
 
 
 # -------------------------------------------------------------------------
+# Get environment variables from script args
+
+# Get script arguments for env variables
+env_vars=""
+if [[ $1 ]]
+then
+  # Build docker environment argument
+  for arg in $@; do
+    env_vars+="-e $arg "
+  done
+  
+  # Some feedback about environment settings
+  echo ""
+  echo "Got environment variables:"
+  echo "$env_vars"
+fi
+
+
+# -------------------------------------------------------------------------
 # Automated commands
 
 # Some feedback while stopping the container
@@ -34,6 +53,7 @@ echo "  --> Success!"
 echo ""
 echo "Running container ($container_name)"
 docker run -d \
+           $env_vars \
            --network=$network_setting \
            -v $host_volume_path:$container_volume_path \
            --name $container_name \
@@ -42,6 +62,7 @@ docker run -d \
 echo "  --> Success!"
 
 # Ask about removing unused images
+echo ""
 read -p "Remove unused images? (y/[n]) " user_response
 case "$user_response" in
   y|Y ) echo "  --> Removing images..."; echo ""; docker image prune;;
