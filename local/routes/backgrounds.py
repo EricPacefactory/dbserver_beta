@@ -112,13 +112,13 @@ def bg_get_one_image(request):
 
 # .....................................................................................................................
 
-def bg_get_relative_image(request):
+def bg_get_active_image(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     target_ems = request.path_params["epoch_ms"]
     
-    # Find the relative metadata entry, so we can grab the corresponding image path
+    # Find the active metadata entry, so we can grab the corresponding image path
     collection_ref = get_background_collection(camera_select)
     no_older_entry, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
     
@@ -128,10 +128,10 @@ def bg_get_relative_image(request):
         return bad_request_response(error_message)
     
     # Build pathing to the file & handle missing file data
-    relative_ems = entry_dict[EPOCH_MS_FIELD]
-    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, relative_ems)
+    active_ems = entry_dict[EPOCH_MS_FIELD]
+    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, active_ems)
     if not os.path.exists(image_load_path):
-        error_message = "No image at {}".format(relative_ems)
+        error_message = "No image at {}".format(active_ems)
         return bad_request_response(error_message)
     
     return FileResponse(image_load_path)
@@ -221,19 +221,19 @@ def bg_get_epochs_by_time_range(request):
     # Get reference to collection to use for queries
     collection_ref = get_background_collection(camera_select)
     
-    # Get 'relative' entry along with range entries
-    no_older_entry, relative_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    # Get 'active' entry along with range entries
+    no_older_entry, active_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
     range_epoch_ms_list = get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
     # Build output
-    epoch_ms_list = [] if no_older_entry else [relative_entry[EPOCH_MS_FIELD]]
+    epoch_ms_list = [] if no_older_entry else [active_entry[EPOCH_MS_FIELD]]
     epoch_ms_list += range_epoch_ms_list
     
     return UJSONResponse(epoch_ms_list)
 
 # .....................................................................................................................
 
-def bg_get_relative_metadata(request):
+def bg_get_active_metadata(request):
     
     ''' 
     Returns the background metadata that was relevant at the given time (i.e. the background in use in realtime)
@@ -243,7 +243,7 @@ def bg_get_relative_metadata(request):
     camera_select = request.path_params["camera_select"]
     target_ems = request.path_params["epoch_ms"]
     
-    # Find the relative metadata entry, so we can grab the corresponding image path
+    # Find the active metadata entry, so we can grab the corresponding image path
     collection_ref = get_background_collection(camera_select)
     no_older_entry, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
     
@@ -288,12 +288,12 @@ def bg_get_many_metadata(request):
     # Get reference to collection to use for queries
     collection_ref = get_background_collection(camera_select)
     
-    # Get 'relative' entry along with range entries
-    no_older_entry, relative_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    # Get 'active' entry along with range entries
+    no_older_entry, active_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
     range_query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
     # Build output
-    return_result = [] if no_older_entry else [relative_entry]
+    return_result = [] if no_older_entry else [active_entry]
     return_result += list(range_query_result)
     
     return UJSONResponse(return_result)
@@ -313,7 +313,7 @@ def bg_count_by_time_range(request):
     # Get reference to collection to use for queries
     collection_ref = get_background_collection(camera_select)
     
-    # Get 'relative' entry, since it should be included in count
+    # Get 'active' entry, since it should be included in count
     no_older_entry, _ = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
     add_one_to_count = (not no_older_entry)
     
@@ -352,11 +352,11 @@ def build_background_routes():
      Route(bg_url("/get-ems-list/by-time-range/{start_time}/{end_time}"), bg_get_epochs_by_time_range),
      Route(bg_url("/get-newest-metadata"), bg_get_newest_metadata),
      Route(bg_url("/get-one-metadata/by-ems/{epoch_ms:int}"), bg_get_one_metadata),
-     Route(bg_url("/get-relative-metadata/by-ems/{epoch_ms:int}"), bg_get_relative_metadata),
+     Route(bg_url("/get-active-metadata/by-ems/{epoch_ms:int}"), bg_get_active_metadata),
      Route(bg_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), bg_get_many_metadata),
      Route(bg_url("/get-newest-image"), bg_get_newest_image),
      Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), bg_get_one_image),
-     Route(bg_url("/get-relative-image/by-ems/{epoch_ms:int}"), bg_get_relative_image),
+     Route(bg_url("/get-active-image/by-ems/{epoch_ms:int}"), bg_get_active_image),
      Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), bg_get_one_b64_jpg),
      Route(bg_url("/count/by-time-range/{start_time}/{end_time}"), bg_count_by_time_range)
     ]
