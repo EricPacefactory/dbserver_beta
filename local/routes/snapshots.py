@@ -427,31 +427,54 @@ def snap_count_by_time_range(request):
 # .....................................................................................................................
 
 def get_snapshot_collection(camera_select):
-    return MCLIENT[camera_select]["snapshots"]
+    return MCLIENT[camera_select][COLLECTION_NAME]
 
 # .....................................................................................................................
 
 def build_snapshot_routes():
     
     # Bundle all snapshot routes
-    snap_url = lambda snap_route: "".join(["/{camera_select:str}/snapshots", snap_route])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     snapshot_routes = \
     [
-     Route(snap_url("/get-bounding-times"), snap_get_bounding_times),
-     Route(snap_url("/get-ems-list/by-time-range/{start_time}/{end_time}"), snap_get_epochs_by_time_range),
-     Route(snap_url("/get-closest-ems/by-time-target/{target_time}"), snap_get_closest_epoch_by_time),
-     Route(snap_url("/get-newest-metadata"), snap_get_newest_metadata),
-     Route(snap_url("/get-one-metadata/by-ems/{epoch_ms:int}"), snap_get_one_metadata),
-     Route(snap_url("/get-closest-metadata/by-time-target/{target_time}"), snap_get_closest_metadata_by_time),
-     Route(snap_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), snap_get_many_metadata),
-     Route(snap_url("/get-many-metadata/by-time-range/skip-n/{start_time}/{end_time}/{n:int}"), 
-           snap_get_many_metadata_skip_n_subsample),
-     Route(snap_url("/get-many-metadata/by-time-range/n-samples/{start_time}/{end_time}/{n:int}"), 
-           snap_get_many_metadata_n_samples),
-     Route(snap_url("/get-newest-image"), snap_get_newest_image),
-     Route(snap_url("/get-one-image/by-ems/{epoch_ms:int}"), snap_get_one_image),
-     Route(snap_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), snap_get_one_b64_jpg),
-     Route(snap_url("/count/by-time-range/{start_time}/{end_time}"), snap_count_by_time_range)
+     Route(url("get-bounding-times"),
+               snap_get_bounding_times),
+     
+     Route(url("get-ems-list", "by-time-range", "{start_time}", "{end_time}"),
+               snap_get_epochs_by_time_range),
+     
+     Route(url("get-closest-ems", "by-time-target", "{target_time}"),
+               snap_get_closest_epoch_by_time),
+     
+     Route(url("get-newest-metadata"),
+               snap_get_newest_metadata),
+     
+     Route(url("get-one-metadata", "by-ems", "{epoch_ms:int}"),
+               snap_get_one_metadata),
+     
+     Route(url("get-closest-metadata", "by-time-target", "{target_time}"),
+               snap_get_closest_metadata_by_time),
+     
+     Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
+               snap_get_many_metadata),
+     
+     Route(url("get-many-metadata", "by-time-range", "skip-n", "{start_time}", "{end_time}", "{n:int}"),
+               snap_get_many_metadata_skip_n_subsample),
+     
+     Route(url("get-many-metadata", "by-time-range", "n-samples", "{start_time}", "{end_time}", "{n:int}"),
+               snap_get_many_metadata_n_samples),
+     
+     Route(url("get-newest-image"),
+               snap_get_newest_image),
+     
+     Route(url("get-one-image", "by-ems", "{epoch_ms:int}"),
+               snap_get_one_image),
+     
+     Route(url("get-one-b64-jpg", "by-ems", "{epoch_ms:int}"),
+               snap_get_one_b64_jpg),
+     
+     Route(url("count", "by-time-range", "{start_time}", "{end_time}"),
+               snap_count_by_time_range)
     ]
     
     return snapshot_routes
@@ -471,6 +494,7 @@ EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
+COLLECTION_NAME = "snapshots"
 
 
 # ---------------------------------------------------------------------------------------------------------------------

@@ -211,21 +211,30 @@ def caminfo_count_by_time_range(request):
 # .....................................................................................................................
 
 def get_camera_info_collection(camera_select):
-    return MCLIENT[camera_select]["camerainfo"]
+    return MCLIENT[camera_select][COLLECTION_NAME]
 
 # .....................................................................................................................
 
 def build_camerainfo_routes():
     
     # Bundle all camera info routes
-    caminfo_url = lambda caminfo_route: "".join(["/{camera_select:str}/camerainfo", caminfo_route])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     camerainfo_routes = \
     [
-     Route(caminfo_url("/get-oldest-metadata"), caminfo_get_oldest_metadata),
-     Route(caminfo_url("/get-newest-metadata"), caminfo_get_newest_metadata),
-     Route(caminfo_url("/get-active-metadata/by-time-target/{target_time}"), caminfo_get_active_metadata),
-     Route(caminfo_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), caminfo_get_many_metadata),
-     Route(caminfo_url("/count/by-time-range/{start_time}/{end_time}"), caminfo_count_by_time_range)
+     Route(url("get-oldest-metadata"),
+           caminfo_get_oldest_metadata),
+     
+     Route(url("get-newest-metadata"),
+           caminfo_get_newest_metadata),
+     
+     Route(url("get-active-metadata", "by-time-target", "{target_time}"),
+           caminfo_get_active_metadata),
+     
+     Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
+           caminfo_get_many_metadata),
+     
+     Route(url("count", "by-time-range", "{start_time}", "{end_time}"),
+           caminfo_count_by_time_range)
     ]
     
     return camerainfo_routes
@@ -242,6 +251,7 @@ EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
+COLLECTION_NAME = "camerainfo"
 
 
 # ---------------------------------------------------------------------------------------------------------------------

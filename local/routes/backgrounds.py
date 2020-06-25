@@ -338,27 +338,48 @@ def bg_count_by_time_range(request):
 # .....................................................................................................................
 
 def get_background_collection(camera_select):
-    return MCLIENT[camera_select]["backgrounds"]
+    return MCLIENT[camera_select][COLLECTION_NAME]
 
 # .....................................................................................................................
 
 def build_background_routes():
     
     # Bundle all background routes
-    bg_url = lambda bg_route: "".join(["/{camera_select:str}/backgrounds", bg_route])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     background_routes = \
     [
-     Route(bg_url("/get-bounding-times"), bg_get_bounding_times),
-     Route(bg_url("/get-ems-list/by-time-range/{start_time}/{end_time}"), bg_get_epochs_by_time_range),
-     Route(bg_url("/get-newest-metadata"), bg_get_newest_metadata),
-     Route(bg_url("/get-one-metadata/by-ems/{epoch_ms:int}"), bg_get_one_metadata),
-     Route(bg_url("/get-active-metadata/by-ems/{epoch_ms:int}"), bg_get_active_metadata),
-     Route(bg_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), bg_get_many_metadata),
-     Route(bg_url("/get-newest-image"), bg_get_newest_image),
-     Route(bg_url("/get-one-image/by-ems/{epoch_ms:int}"), bg_get_one_image),
-     Route(bg_url("/get-active-image/by-ems/{epoch_ms:int}"), bg_get_active_image),
-     Route(bg_url("/get-one-b64-jpg/by-ems/{epoch_ms:int}"), bg_get_one_b64_jpg),
-     Route(bg_url("/count/by-time-range/{start_time}/{end_time}"), bg_count_by_time_range)
+     Route(url("get-bounding-times"),
+               bg_get_bounding_times),
+     
+     Route(url("get-ems-list", "by-time-range", "{start_time}", "{end_time}"),
+               bg_get_epochs_by_time_range),
+     
+     Route(url("get-newest-metadata"),
+               bg_get_newest_metadata),
+     
+     Route(url("get-one-metadata", "by-ems", "{epoch_ms:int}"),
+               bg_get_one_metadata),
+     
+     Route(url("get-active-metadata", "by-ems", "{epoch_ms:int}"),
+               bg_get_active_metadata),
+     
+     Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
+               bg_get_many_metadata),
+     
+     Route(url("get-newest-image"),
+               bg_get_newest_image),
+     
+     Route(url("get-one-image", "by-ems", "{epoch_ms:int}"),
+               bg_get_one_image),
+     
+     Route(url("get-active-image", "by-ems", "{epoch_ms:int}"),
+               bg_get_active_image),
+     
+     Route(url("get-one-b64-jpg", "by-ems", "{epoch_ms:int}"),
+               bg_get_one_b64_jpg),
+     
+     Route(url("count", "by-time-range", "{start_time}", "{end_time}"),
+               bg_count_by_time_range)
     ]
     
     return background_routes
@@ -378,6 +399,7 @@ EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
+COLLECTION_NAME = "backgrounds"
 
 
 # ---------------------------------------------------------------------------------------------------------------------

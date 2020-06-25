@@ -200,15 +200,32 @@ async def post_snapshot_image_data(request):
 def build_posting_routes():
     
     # Bundle all data posting routes
-    post_url = lambda post_route: "".join(["/{camera_select:str}", post_route])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", *url_components])
     post_data_routes = \
     [
-     Route(post_url("/bdb/metadata/camerainfo"), post_camerainfo, methods=["POST"]),
-     Route(post_url("/bdb/metadata/backgrounds"), post_background_metadata, methods=["POST"]),
-     Route(post_url("/bdb/metadata/objects"), post_object_data, methods=["POST"]),
-     Route(post_url("/bdb/metadata/snapshots"), post_snapshot_metadata, methods=["POST"]),
-     Route(post_url("/bdb/image/backgrounds/{epoch_ms:int}"), post_background_image_data, methods=["POST"]),
-     Route(post_url("/bdb/image/snapshots/{epoch_ms:int}"), post_snapshot_image_data, methods=["POST"])
+     Route(url("bdb", "metadata", "camerainfo"),
+               post_camerainfo,
+               methods=["POST"]),
+     
+     Route(url("bdb", "metadata", "backgrounds"),
+               post_background_metadata,
+               methods=["POST"]),
+     
+     Route(url("bdb", "metadata", "objects"),
+               post_object_data,
+               methods=["POST"]),
+     
+     Route(url("bdb", "metadata", "snapshots"),
+               post_snapshot_metadata,
+               methods=["POST"]),
+     
+     Route(url("bdb", "image", "backgrounds", "{epoch_ms:int}"),
+               post_background_image_data,
+               methods=["POST"]),
+     
+     Route(url("bdb", "image", "snapshots", "{epoch_ms:int}"),
+               post_snapshot_image_data,
+               methods=["POST"])
     ]
     
     return post_data_routes

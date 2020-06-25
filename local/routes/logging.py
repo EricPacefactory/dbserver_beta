@@ -207,14 +207,23 @@ def get_logging_collection(camera_select, log_type):
 def build_logging_routes():
     
     # Bundle all camera info routes
-    log_url = lambda log_route: "".join(["/{camera_select:str}/serverlogs", log_route])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     logging_routes = \
     [
-     Route(log_url("/get-all-log-types"), logs_get_all_types),
-     Route(log_url("/{log_type:str}/get-newest-metadata"), logs_get_newest),
-     Route(log_url("/{log_type:str}/since/{target_time}"), logs_since_target_time),
-     Route(log_url("/{log_type:str}/by-time-range/{start_time}/{end_time}"), logs_by_time_range),
-     Route(log_url("/{log_type:str}/count/by-time-range/{start_time}/{end_time}"), logs_count_by_time_range)
+     Route(url("get-all-log-types"),
+               logs_get_all_types),
+     
+     Route(url("{log_type:str}", "get-newest-metadata"),
+               logs_get_newest),
+     
+     Route(url("{log_type:str}", "since", "{target_time}"),
+               logs_since_target_time),
+     
+     Route(url("{log_type:str}", "by-time-range", "{start_time}", "{end_time}"),
+               logs_by_time_range),
+     
+     Route(url("{log_type:str}", "count", "by-time-range", "{start_time}", "{end_time}"),
+               logs_count_by_time_range)
     ]
     
     return logging_routes
@@ -226,14 +235,15 @@ def build_logging_routes():
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
 
-# Set shared log prefix indicator
-LOG_PREFIX = "serverlogs-"
-
 # Hard-code (global!) variable used to indicate timing field
 EPOCH_MS_FIELD = "_id"
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
+COLLECTION_NAME = "serverlogs"
+
+# Set shared log prefix indicator
+LOG_PREFIX = "{}-".format(COLLECTION_NAME)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

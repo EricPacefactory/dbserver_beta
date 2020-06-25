@@ -351,25 +351,42 @@ def objects_set_indexing(request):
 # .....................................................................................................................
 
 def get_object_collection(camera_select):
-    return MCLIENT[camera_select]["objects"]
+    return MCLIENT[camera_select][COLLECTION_NAME]
 
 # .....................................................................................................................
 
 def build_object_routes():
     
     # Bundle all object routes
-    obj_url = lambda obj_route: "".join(["/{camera_select:str}/objects", obj_route])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     object_routes = \
     [
-     Route(obj_url("/get-newest-metadata"), objects_get_newest_metadata),
-     Route(obj_url("/get-ids-list/by-time-target/{target_time}"), objects_get_ids_at_target_time),
-     Route(obj_url("/get-ids-list/by-time-range/{start_time}/{end_time}"), objects_get_ids_by_time_range),
-     Route(obj_url("/get-one-metadata/by-id/{object_full_id:int}"), objects_get_one_metadata_by_id),
-     Route(obj_url("/get-many-metadata/by-time-target/{target_time}"), objects_get_many_metadata_at_target_time),
-     Route(obj_url("/get-many-metadata/by-time-range/{start_time}/{end_time}"), objects_get_many_metadata_by_time_range),
-     Route(obj_url("/count/by-time-target/{target_time}"), objects_count_at_target_time),
-     Route(obj_url("/count/by-time-range/{start_time}/{end_time}"), objects_count_by_time_range),
-     Route(obj_url("/set-indexing"), objects_set_indexing)
+     Route(url("get-newest-metadata"),
+               objects_get_newest_metadata),
+     
+     Route(url("get-ids-list", "by-time-target", "{target_time}"),
+               objects_get_ids_at_target_time),
+     
+     Route(url("get-ids-list", "by-time-range", "{start_time}", "{end_time}"),
+               objects_get_ids_by_time_range),
+     
+     Route(url("get-one-metadata", "by-id", "{object_full_id:int}"),
+               objects_get_one_metadata_by_id),
+     
+     Route(url("get-many-metadata", "by-time-target", "{target_time}"),
+               objects_get_many_metadata_at_target_time),
+     
+     Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
+               objects_get_many_metadata_by_time_range),
+     
+     Route(url("count", "by-time-target", "{target_time}"),
+               objects_count_at_target_time),
+     
+     Route(url("count", "by-time-range", "{start_time}", "{end_time}"),
+               objects_count_by_time_range),
+     
+     Route(url("set-indexing"),
+               objects_set_indexing)
     ]
     
     return object_routes
@@ -388,6 +405,7 @@ FINAL_EPOCH_MS_FIELD = "final_epoch_ms"
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
+COLLECTION_NAME = "objects"
 
 
 # ---------------------------------------------------------------------------------------------------------------------

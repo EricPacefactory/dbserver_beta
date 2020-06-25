@@ -332,15 +332,26 @@ def delete_serverlogs_by_cutoff(request):
 def build_deleting_routes():
     
     # Bundle all deleting routes
-    delete_url = lambda delete_route: "".join(["/{camera_select:str}/delete", delete_route])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     deleting_routes = \
     [
-     Route(delete_url("/camerainfo/by-cutoff/{target_time}"), delete_caminfos_by_cutoff),
-     Route(delete_url("/backgrounds/by-cutoff/{target_time}"), delete_backgrounds_by_cutoff),
-     Route(delete_url("/objects/by-cutoff/{target_time}"), delete_objects_by_cutoff),
-     Route(delete_url("/snapshots/by-cutoff/{target_time}"), delete_snapshots_by_cutoff),
-     Route(delete_url("/all-realtime/by-cutoff/{target_time}"), delete_allrealtime_by_cutoff),
-     Route(delete_url("/serverlogs/{log_type:str}/by-cutoff/{target_time}"), delete_serverlogs_by_cutoff)
+     Route(url("camerainfo", "by-cutoff", "{target_time}"),
+               delete_caminfos_by_cutoff),
+     
+     Route(url("backgrounds", "by-cutoff", "{target_time}"),
+               delete_backgrounds_by_cutoff),
+     
+     Route(url("objects", "by-cutoff", "{target_time}"),
+               delete_objects_by_cutoff),
+     
+     Route(url("snapshots", "by-cutoff", "{target_time}"),
+               delete_snapshots_by_cutoff),
+     
+     Route(url("all-realtime", "by-cutoff", "{target_time}"),
+               delete_allrealtime_by_cutoff),
+     
+     Route(url("serverlogs", "{log_type:str}", "by-cutoff", "{target_time}"),
+               delete_serverlogs_by_cutoff)
     ]
     
     return deleting_routes
@@ -357,6 +368,7 @@ IMAGE_FOLDER = build_base_image_pathing()
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
+COLLECTION_NAME = "delete"
 
 
 # ---------------------------------------------------------------------------------------------------------------------
