@@ -154,10 +154,11 @@ def post_one_to_mongo(mongo_client, database_name, collection_name, data_to_inse
         post_success = True
         
     except pymongo.errors.DuplicateKeyError as dupe_key_error:
-        cleaned_details = dupe_key_error.details
-        cleaned_details.pop("writeErrors")
         mongo_response = {"error": "duplicate key error",
-                          "details": cleaned_details}
+                          "details": dupe_key_error.details}
+    
+    except Exception as err:
+        mongo_response = {"error": str(err)}
     
     return post_success, mongo_response
 
