@@ -53,7 +53,7 @@ from local.lib.mongo_helpers import connect_to_mongo, post_many_to_mongo
 from local.lib.response_helpers import post_success_response, not_allowed_response, bad_request_response
 from local.lib.image_pathing import build_base_image_pathing, build_image_pathing
 
-from local.routes.objects import set_object_indexing, check_object_indexing, get_object_collection
+from local.routes.objects import get_object_collection, check_collection_indexing, set_collection_indexing
 
 from starlette.routing import Route
 
@@ -130,10 +130,10 @@ async def post_camerainfo(request):
     
     # Try to set object indexing every time new camera info is posted
     # (which should be infrequent, but indicates the camera has reset)
-    collection_ref = get_object_collection(camera_select)
-    object_indexes_are_set = check_object_indexing(collection_ref)
+    obj_collection_ref = get_object_collection(camera_select)
+    object_indexes_are_set = check_collection_indexing(obj_collection_ref)
     if not object_indexes_are_set:
-        set_object_indexing(collection_ref)
+        set_collection_indexing(obj_collection_ref)
         #print("  --> Object indexing set for {}".format(camera_select))
     
     return post_response
