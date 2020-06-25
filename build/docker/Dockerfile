@@ -42,13 +42,13 @@ RUN pip3 install -r $HOME/dbserver/requirements.txt
 COPY . .
 
 # Run the server! This is a blocking call...
-CMD uvicorn launch:asgi_app --host $DBSERVER_HOST --port $DBSERVER_PORT
+ENTRYPOINT ["sh", "docker_entrypoint.sh"]
 
 
 # -----------------------------------------------------------------------------
 # To use manually:
 
-# From outside dbserver project directory:
-# sudo docker build -t dbserver_image -f ./dbserver/build/docker/Dockerfile ./dbserver
-# sudo docker run -d --network="host" -v /tmp/images_dbserver:/home/scv2/images_dbserver --name dbserver_container dbserver_image
+# From the project root directory:
+# sudo docker build -t dbserver_image -f ./build/docker/Dockerfile .
+# sudo docker run -d --network="host" -v /tmp/images_dbserver:/home/scv2/images_dbserver --name dbserver dbserver_image
 
