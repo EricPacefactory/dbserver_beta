@@ -94,6 +94,19 @@ def start_end_times_to_epoch_ms(start_time, end_time):
 #%% Query functions
 
 # .....................................................................................................................
+    
+def get_all_ids(collection_ref, sort_field = "_id"):
+    
+    # Build query
+    query_dict = None
+    projection_dict = {}
+    
+    # Request data from the db
+    query_result = collection_ref.find(query_dict, projection_dict).sort(sort_field, ASCENDING)
+    
+    return query_result
+
+# .....................................................................................................................
 
 def get_one_metadata(collection_ref, target_field, target_value):
     
