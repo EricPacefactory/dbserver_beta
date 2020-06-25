@@ -54,7 +54,7 @@ from time import perf_counter
 from local.lib.mongo_helpers import connect_to_mongo
 
 from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
-from local.lib.query_helpers import get_one_metadata, get_newest_metadata
+from local.lib.query_helpers import get_all_ids, get_one_metadata, get_newest_metadata
 
 from local.lib.response_helpers import bad_request_response, no_data_response
 
@@ -69,7 +69,7 @@ from pymongo import ASCENDING
 
 # .....................................................................................................................
 
-def check_object_indexing(collection_ref):
+def check_collection_indexing(collection_ref):
     
     ''' Helper function which can be used to check if object indexing is already set '''
     
@@ -82,7 +82,7 @@ def check_object_indexing(collection_ref):
 
 # .....................................................................................................................
 
-def set_object_indexing(collection_ref):
+def set_collection_indexing(collection_ref):
     
     ''' Helper function which can be used to set indexing on object collection '''
     
@@ -160,6 +160,22 @@ def objects_get_newest_metadata(request):
         return no_data_response(error_message)
     
     return UJSONResponse(metadata_dict)
+
+# .....................................................................................................................
+
+def objects_get_all_ids(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Request data from the db
+    collection_ref = get_object_collection(camera_select)
+    query_result = get_all_ids(collection_ref)
+    
+    # Pull out the ID into a list, instead of returning a list of dictionaries
+    return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
+    
+    return UJSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -322,13 +338,13 @@ def objects_set_indexing(request):
     t_start = perf_counter()
     
     # First check if the index is already set
-    indexes_already_set = check_object_indexing(collection_ref)
+    indexes_already_set = check_collection_indexing(collection_ref)
     if indexes_already_set:
         return_result = {"already_set": True}
         return UJSONResponse(return_result)
     
     # Set indexes on target fields if we haven't already
-    mongo_response_list = set_object_indexing(collection_ref)
+    mongo_response_list = set_collection_indexing(collection_ref)
     
     # End timing
     t_end = perf_counter()
@@ -363,6 +379,9 @@ def build_object_routes():
     [
      Route(url("get-newest-metadata"),
                objects_get_newest_metadata),
+     
+     Route(url("get-all-ids-list"),
+               objects_get_all_ids),
      
      Route(url("get-ids-list", "by-time-target", "{target_time}"),
                objects_get_ids_at_target_time),
