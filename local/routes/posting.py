@@ -50,12 +50,17 @@ find_path_to_local()
 #%% Imports
 
 from local.lib.mongo_helpers import connect_to_mongo, post_many_to_mongo
+from local.lib.mongo_helpers import check_collection_indexing, set_collection_indexing
 from local.lib.response_helpers import post_success_response, not_allowed_response, bad_request_response
 from local.lib.image_pathing import build_base_image_pathing, build_image_pathing
 
-from local.routes.objects import get_object_collection, check_collection_indexing, set_collection_indexing
-
 from starlette.routing import Route
+
+from local.routes.objects import get_object_collection
+from local.routes.objects import KEYS_TO_INDEX as OBJ_KEYS_TO_INDEX
+
+from local.routes.stations import get_station_collection
+from local.routes.stations import KEYS_TO_INDEX as STN_KEYS_TO_INDEX
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -131,12 +136,28 @@ async def post_camerainfo(request):
     # Try to set object indexing every time new camera info is posted
     # (which should be infrequent, but indicates the camera has reset)
     obj_collection_ref = get_object_collection(camera_select)
-    object_indexes_are_set = check_collection_indexing(obj_collection_ref)
+    object_indexes_are_set = check_collection_indexing(obj_collection_ref, OBJ_KEYS_TO_INDEX)
     if not object_indexes_are_set:
-        set_collection_indexing(obj_collection_ref)
+        set_collection_indexing(obj_collection_ref, OBJ_KEYS_TO_INDEX)
         #print("  --> Object indexing set for {}".format(camera_select))
     
+    # Try to set station indexing every time new camera info is posted
+    stn_collection_ref = get_station_collection(camera_select)
+    station_indexes_are_set = check_collection_indexing(stn_collection_ref, STN_KEYS_TO_INDEX)
+    if not station_indexes_are_set:
+        set_collection_indexing(stn_collection_ref, STN_KEYS_TO_INDEX)
+        #print("  --> Station indexing set for {}".format(camera_select))
+    
     return post_response
+
+# .....................................................................................................................
+
+async def post_configinfo(request):
+    
+    # For clarity
+    collection_name = "configinfo"
+    
+    return await post_metadata_by_collection(request, collection_name)
 
 # .....................................................................................................................
 
@@ -153,6 +174,15 @@ async def post_object_data(request):
     
     # For clarity
     collection_name = "objects"
+    
+    return await post_metadata_by_collection(request, collection_name)
+
+# .....................................................................................................................
+
+async def post_station_data(request):
+    
+    # For clarity
+    collection_name = "stations"
     
     return await post_metadata_by_collection(request, collection_name)
 
@@ -207,12 +237,20 @@ def build_posting_routes():
                post_camerainfo,
                methods=["POST"]),
      
+     Route(url("bdb", "metadata", "configinfo"),
+               post_configinfo,
+               methods=["POST"]),
+     
      Route(url("bdb", "metadata", "backgrounds"),
                post_background_metadata,
                methods=["POST"]),
      
      Route(url("bdb", "metadata", "objects"),
                post_object_data,
+               methods=["POST"]),
+     
+     Route(url("bdb", "metadata", "stations"),
+               post_station_data,
                methods=["POST"]),
      
      Route(url("bdb", "metadata", "snapshots"),

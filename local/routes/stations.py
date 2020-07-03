@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Apr  4 15:03:58 2020
+Created on Fri Jul  3 16:04:15 2020
 
 @author: eo
 """
@@ -53,7 +53,7 @@ from time import perf_counter
 
 from local.lib.mongo_helpers import connect_to_mongo, check_collection_indexing, set_collection_indexing
 
-from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
+from local.lib.query_helpers import start_end_times_to_epoch_ms
 from local.lib.query_helpers import get_all_ids, get_one_metadata, get_newest_metadata
 
 from local.lib.response_helpers import bad_request_response, no_data_response
@@ -65,7 +65,7 @@ from pymongo import ASCENDING
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Create object-specific query helpers
+#%% Create station-specific query helpers
 
 # .....................................................................................................................
 
@@ -87,7 +87,7 @@ def find_by_target_time(collection_ref, target_ems, *, return_ids_only):
     projection_dict = {} if return_ids_only else None
     
     # Request data from the db
-    query_result = collection_ref.find(filter_dict, projection_dict).sort(OBJ_ID_FIELD, ASCENDING)
+    query_result = collection_ref.find(filter_dict, projection_dict).sort(STN_ID_FIELD, ASCENDING)
     
     return query_result
 
@@ -100,7 +100,7 @@ def find_by_time_range(collection_ref, start_ems, end_ems, *, return_ids_only):
     projection_dict = {} if return_ids_only else None
     
     # Request data from the db
-    query_result = collection_ref.find(filter_dict, projection_dict).sort(OBJ_ID_FIELD, ASCENDING)
+    query_result = collection_ref.find(filter_dict, projection_dict).sort(STN_ID_FIELD, ASCENDING)
     
     return query_result
 
@@ -108,17 +108,17 @@ def find_by_time_range(collection_ref, start_ems, end_ems, *, return_ids_only):
 # .....................................................................................................................
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Create object routes
+#%% Create station routes
 
 # .....................................................................................................................
 
-def objects_get_newest_metadata(request):
+def stations_get_newest_metadata(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     
     # Get data from db
-    collection_ref = get_object_collection(camera_select)
+    collection_ref = get_station_collection(camera_select)
     no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, FINAL_EPOCH_MS_FIELD)
     
     # Handle missing metadata
@@ -130,41 +130,23 @@ def objects_get_newest_metadata(request):
 
 # .....................................................................................................................
 
-def objects_get_all_ids(request):
+def stations_get_all_ids(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
     
     # Request data from the db
-    collection_ref = get_object_collection(camera_select)
+    collection_ref = get_station_collection(camera_select)
     query_result = get_all_ids(collection_ref)
     
     # Pull out the ID into a list, instead of returning a list of dictionaries
-    return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
+    return_result = [each_entry[STN_ID_FIELD] for each_entry in query_result]
     
     return UJSONResponse(return_result)
 
 # .....................................................................................................................
 
-def objects_get_ids_at_target_time(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    target_time = request.path_params["target_time"]
-    target_ems = url_time_to_epoch_ms(target_time)
-    
-    # Request data from the db
-    collection_ref = get_object_collection(camera_select)
-    query_result = find_by_target_time(collection_ref, target_ems, return_ids_only = True)
-    
-    # Convert to list of ids only
-    return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def objects_get_ids_by_time_range(request):
+def stations_get_ids_by_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
@@ -175,54 +157,36 @@ def objects_get_ids_by_time_range(request):
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
     # Request data from the db
-    collection_ref = get_object_collection(camera_select)
+    collection_ref = get_station_collection(camera_select)
     query_result = find_by_time_range(collection_ref, start_ems, end_ems, return_ids_only = True)
     
     # Pull out the epoch values into a list, instead of returning a list of dictionaries
-    return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
+    return_result = [each_entry[STN_ID_FIELD] for each_entry in query_result]
     
     return UJSONResponse(return_result)
 
 # .....................................................................................................................
 
-def objects_get_one_metadata_by_id(request):
+def stations_get_one_metadata_by_id(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    object_full_id = int(request.path_params["object_full_id"])
+    station_full_id = int(request.path_params["station_full_id"])
     
     # Request data from the db
-    collection_ref = get_object_collection(camera_select)
-    query_result = get_one_metadata(collection_ref, OBJ_ID_FIELD, object_full_id)
+    collection_ref = get_station_collection(camera_select)
+    query_result = get_one_metadata(collection_ref, STN_ID_FIELD, station_full_id)
     
     # Deal with missing data
     if not query_result:
-        error_message = "No object with id {}".format(object_full_id)
+        error_message = "No station with id {}".format(station_full_id)
         return bad_request_response(error_message)
     
     return UJSONResponse(query_result)
 
 # .....................................................................................................................
 
-def objects_get_many_metadata_at_target_time(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    target_time = request.path_params["target_time"]
-    target_ems = url_time_to_epoch_ms(target_time)
-    
-    # Request data from the db
-    collection_ref = get_object_collection(camera_select)
-    query_result = find_by_target_time(collection_ref, target_ems, return_ids_only = False)
-    
-    # Convert to dictionary, with object ids as keys
-    return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def objects_get_many_metadata_by_time_range(request):
+def stations_get_many_metadata_by_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
@@ -233,39 +197,17 @@ def objects_get_many_metadata_by_time_range(request):
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
     
     # Request data from the db
-    collection_ref = get_object_collection(camera_select)
+    collection_ref = get_station_collection(camera_select)
     query_result = find_by_time_range(collection_ref, start_ems, end_ems, return_ids_only = False)
     
-    # Convert to dictionary, with object ids as keys
-    return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
+    # Convert to dictionary, with station ids as keys
+    return_result = {each_result[STN_ID_FIELD]: each_result for each_result in query_result}
     
     return UJSONResponse(return_result)
 
 # .....................................................................................................................
 
-def objects_count_at_target_time(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    target_time = request.path_params["target_time"]
-    target_ems = url_time_to_epoch_ms(target_time)
-    
-    # Build query
-    query_dict = get_target_time_query_filter(target_ems)
-    projection_dict = None
-    
-    # Request data from the db
-    collection_ref = get_object_collection(camera_select)
-    query_result = collection_ref.count_documents(query_dict, projection_dict)
-    
-    # Convert to dictionary with count
-    return_result = {"count": int(query_result)}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def objects_count_by_time_range(request):
+def stations_count_by_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
@@ -280,7 +222,7 @@ def objects_count_by_time_range(request):
     projection_dict = None
     
     # Request data from the db
-    collection_ref = get_object_collection(camera_select)
+    collection_ref = get_station_collection(camera_select)
     query_result = collection_ref.count_documents(query_dict, projection_dict)
     
     # Convert to dictionary with count
@@ -290,16 +232,16 @@ def objects_count_by_time_range(request):
 
 # .....................................................................................................................
 
-def objects_set_indexing(request):
+def stations_set_indexing(request):
     
     ''' 
-    Hacky function... Used to manually set object timing indexes for a specified camera.
+    Hacky function... Used to manually set station timing indexes for a specified camera.
     Ideally this is handled automatically during posting, but this route can be used to manually set/check indexing
     '''
     
     # Get selected camera & corresponding collection
     camera_select = request.path_params["camera_select"]
-    collection_ref = get_object_collection(camera_select)
+    collection_ref = get_station_collection(camera_select)
     
     # Start timing
     t_start = perf_counter()
@@ -333,49 +275,40 @@ def objects_set_indexing(request):
 
 # .....................................................................................................................
 
-def get_object_collection(camera_select):
+def get_station_collection(camera_select):
     return MCLIENT[camera_select][COLLECTION_NAME]
 
 # .....................................................................................................................
 
-def build_object_routes():
+def build_station_routes():
     
-    # Bundle all object routes
+    # Bundle all station routes
     url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
-    object_routes = \
+    station_routes = \
     [
      Route(url("get-newest-metadata"),
-               objects_get_newest_metadata),
+               stations_get_newest_metadata),
      
      Route(url("get-all-ids-list"),
-               objects_get_all_ids),
-     
-     Route(url("get-ids-list", "by-time-target", "{target_time}"),
-               objects_get_ids_at_target_time),
+               stations_get_all_ids),
      
      Route(url("get-ids-list", "by-time-range", "{start_time}", "{end_time}"),
-               objects_get_ids_by_time_range),
+               stations_get_ids_by_time_range),
      
-     Route(url("get-one-metadata", "by-id", "{object_full_id:int}"),
-               objects_get_one_metadata_by_id),
-     
-     Route(url("get-many-metadata", "by-time-target", "{target_time}"),
-               objects_get_many_metadata_at_target_time),
+     Route(url("get-one-metadata", "by-id", "{station_data_id:int}"),
+               stations_get_one_metadata_by_id),
      
      Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
-               objects_get_many_metadata_by_time_range),
-     
-     Route(url("count", "by-time-target", "{target_time}"),
-               objects_count_at_target_time),
+               stations_get_many_metadata_by_time_range),
      
      Route(url("count", "by-time-range", "{start_time}", "{end_time}"),
-               objects_count_by_time_range),
+               stations_count_by_time_range),
      
      Route(url("set-indexing"),
-               objects_set_indexing)
+               stations_set_indexing)
     ]
     
-    return object_routes
+    return station_routes
 
 # .....................................................................................................................
 # .....................................................................................................................
@@ -385,7 +318,7 @@ def build_object_routes():
 #%% Global setup
 
 # Hard-code (global!) variables used to indicate timing fields
-OBJ_ID_FIELD = "_id"
+STN_ID_FIELD = "_id"
 FIRST_EPOCH_MS_FIELD = "first_epoch_ms"
 FINAL_EPOCH_MS_FIELD = "final_epoch_ms"
 
@@ -394,7 +327,7 @@ KEYS_TO_INDEX = [FIRST_EPOCH_MS_FIELD, FINAL_EPOCH_MS_FIELD]
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
-COLLECTION_NAME = "objects"
+COLLECTION_NAME = "stations"
 
 
 # ---------------------------------------------------------------------------------------------------------------------

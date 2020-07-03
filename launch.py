@@ -19,9 +19,11 @@ from local.routes.deleting import build_deleting_routes
 from local.routes.logging import build_logging_routes
 from local.routes.misc import build_help_route, build_misc_routes
 from local.routes.camerainfo import build_camerainfo_routes
+from local.routes.configinfo import build_configinfo_routes
 from local.routes.backgrounds import build_background_routes
 from local.routes.objects import build_object_routes
 from local.routes.favorites import build_favorite_routes
+from local.routes.stations import build_station_routes
 from local.routes.snapshots import build_snapshot_routes
 from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
 from local.lib.quitters import ide_catcher
@@ -43,10 +45,12 @@ def build_all_routes():
     all_routes_dict = OrderedDict()
     all_routes_dict["Miscellaneous"] = build_misc_routes()
     all_routes_dict["Camera Info"] = build_camerainfo_routes()
+    all_routes_dict["Configuration Info"] = build_configinfo_routes()
     all_routes_dict["Backgrounds"] = build_background_routes()
     all_routes_dict["Snapshots"] = build_snapshot_routes()
     all_routes_dict["Objects"] = build_object_routes()
     all_routes_dict["Favorites"] = build_favorite_routes()
+    all_routes_dict["Stations"] = build_station_routes()
     all_routes_dict["POSTing"] = build_posting_routes()
     all_routes_dict["Deleting"] = build_deleting_routes()
     all_routes_dict["Server Logs"] = build_logging_routes()

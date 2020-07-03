@@ -61,10 +61,22 @@ from local.lib.query_helpers import url_time_to_epoch_ms, get_closest_metadata_b
 from local.lib.response_helpers import parse_ujson_response
 
 from local.routes.camerainfo import get_camera_info_collection
+from local.routes.configinfo import get_config_info_collection
 from local.routes.backgrounds import get_background_collection
 from local.routes.snapshots import get_snapshot_collection
 from local.routes.objects import get_object_collection
+from local.routes.stations import get_station_collection
 from local.routes.logging import log_to_server, get_logging_collection
+
+from local.routes.camerainfo import COLLECTION_NAME as CAMINFO_COLLECTION_NAME
+from local.routes.configinfo import COLLECTION_NAME as CFGINFO_COLLECTION_NAME
+from local.routes.backgrounds import COLLECTION_NAME as BACKGROUNDS_COLLECTION_NAME
+from local.routes.snapshots import COLLECTION_NAME as SNAPSHOTS_COLLECTION_NAME
+from local.routes.objects import COLLECTION_NAME as OBJECTS_COLLECTION_NAME
+from local.routes.stations import COLLECTION_NAME as STATIONS_COLLECTION_NAME
+
+from local.routes.objects import FINAL_EPOCH_MS_FIELD as OBJ_FINAL_EMS_FIELD
+from local.routes.stations import FINAL_EPOCH_MS_FIELD as STN_FINAL_EMS_FIELD
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
@@ -75,7 +87,7 @@ from starlette.routing import Route
 
 # .....................................................................................................................
 
-def _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field = "_id"):
+def _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field):
     
     # Start timing
     t_start = perf_counter()
@@ -110,7 +122,7 @@ def delete_caminfos_by_cutoff(request):
     t_start = perf_counter()
     
     # Find the closest camera info before the target time, since we'll want to keep it!
-    epoch_ms_field = "_id"
+    epoch_ms_field = DEFAULT_EMS_FIELD
     collection_ref = get_camera_info_collection(camera_select)
     no_result, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field)
     
@@ -121,6 +133,45 @@ def delete_caminfos_by_cutoff(request):
         oldest_allowed_ems = keep_oldest_ems - 1
     
     # Delete old camera info metadata!
+    delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
+    
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    
+    # Build output to provide feedback about deletion
+    deletion_datetime_str = epoch_ms_to_local_isoformat(oldest_allowed_ems)
+    return_result = {"deletion_datetime_isoformat": deletion_datetime_str,
+                     "deletion_epoch_ms": oldest_allowed_ems,
+                     "time_taken_ms": time_taken_ms,
+                     "mongo_response": delete_response}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def delete_cfginfos_by_cutoff(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_time = request.path_params["target_time"]
+    target_ems = url_time_to_epoch_ms(target_time)
+    
+    # Start timing
+    t_start = perf_counter()
+    
+    # Find the closest config info before the target time, since we'll want to keep it!
+    epoch_ms_field = DEFAULT_EMS_FIELD
+    collection_ref = get_config_info_collection(camera_select)
+    no_result, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field)
+    
+    # Determine the deletion time to use, depending on whether we found an older config info
+    oldest_allowed_ems = target_ems
+    if not no_result:
+        keep_oldest_ems = entry_dict[epoch_ms_field]
+        oldest_allowed_ems = keep_oldest_ems - 1
+    
+    # Delete old config info metadata!
     delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
     
     # End timing
@@ -152,7 +203,7 @@ def delete_backgrounds_by_cutoff(request):
     # Determine oldest background to delete
     
     # Find the closest background before the target time, since we'll want to keep it!
-    epoch_ms_field = "_id"
+    epoch_ms_field = DEFAULT_EMS_FIELD
     collection_ref = get_background_collection(camera_select)
     no_result, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field)
     
@@ -206,8 +257,47 @@ def delete_objects_by_cutoff(request):
     t_start = perf_counter()
     
     # Delete old object metadata, based on when objects ended
-    epoch_ms_field = "final_epoch_ms"
+    epoch_ms_field = OBJ_FINAL_EMS_FIELD
     collection_ref = get_object_collection(camera_select)
+    delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
+    
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    
+    # Build output to provide feedback about deletion
+    deletion_datetime_str = epoch_ms_to_local_isoformat(oldest_allowed_ems)
+    return_result = {"deletion_datetime_isoformat": deletion_datetime_str,
+                     "deletion_epoch_ms": oldest_allowed_ems,
+                     "time_taken_ms": time_taken_ms,
+                     "mongo_response": delete_response}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def delete_stations_by_cutoff(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_time = request.path_params["target_time"]
+    target_ems = url_time_to_epoch_ms(target_time)
+    
+    # Start timing
+    t_start = perf_counter()
+    
+    # Find the closest station data before the target time, since we'll want to keep it!
+    epoch_ms_field = STN_FINAL_EMS_FIELD
+    collection_ref = get_station_collection(camera_select)
+    no_result, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field)
+    
+    # Determine the deletion time to use, depending on whether we found an older station data entry
+    oldest_allowed_ems = target_ems
+    if not no_result:
+        keep_oldest_ems = entry_dict[epoch_ms_field]
+        oldest_allowed_ems = keep_oldest_ems - 1
+    
+    # Delete old station metadata!
     delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
     
     # End timing
@@ -237,7 +327,7 @@ def delete_snapshots_by_cutoff(request):
     
     # Delete old metadata
     # Important to do this before deleting image data, so we don't have any metadata pointing to missing images!
-    epoch_ms_field = "_id"
+    epoch_ms_field = DEFAULT_EMS_FIELD
     collection_ref = get_snapshot_collection(camera_select)
     delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
     
@@ -267,21 +357,27 @@ def delete_allrealtime_by_cutoff(request):
     
     # Call other delete routes
     caminfo_delete_response = delete_caminfos_by_cutoff(request)
+    cfginfo_delete_response = delete_cfginfos_by_cutoff(request)
     backgrounds_delete_response = delete_backgrounds_by_cutoff(request)
     objects_delete_response = delete_objects_by_cutoff(request)
+    stations_delete_response = delete_stations_by_cutoff(request)
     snapshots_delete_response = delete_snapshots_by_cutoff(request)
     
     # Need to parse ujson responses to get deletion counts for logging
     caminfo_result = parse_ujson_response(caminfo_delete_response)
+    cfginfo_result = parse_ujson_response(cfginfo_delete_response)
     backgrounds_result = parse_ujson_response(backgrounds_delete_response)
     objects_result = parse_ujson_response(objects_delete_response)
+    stations_result = parse_ujson_response(stations_delete_response)
     snapshots_result = parse_ujson_response(snapshots_delete_response)
     
     # Build output to provide feedback about deletion
-    return_result = {"camerainfo": caminfo_result,
-                     "backgrounds": backgrounds_result,
-                     "objects": objects_result,
-                     "snapshots": snapshots_result}
+    return_result = {CAMINFO_COLLECTION_NAME: caminfo_result,
+                     CFGINFO_COLLECTION_NAME: cfginfo_result,
+                     BACKGROUNDS_COLLECTION_NAME: backgrounds_result,
+                     OBJECTS_COLLECTION_NAME: objects_result,
+                     STATIONS_COLLECTION_NAME: stations_result,
+                     SNAPSHOTS_COLLECTION_NAME: snapshots_result}
     
     # Log results on the database itself
     camera_select = request.path_params["camera_select"]
@@ -303,7 +399,7 @@ def delete_serverlogs_by_cutoff(request):
     t_start = perf_counter()
     
     # Delete old log entries
-    epoch_ms_field = "_id"
+    epoch_ms_field = DEFAULT_EMS_FIELD
     collection_ref = get_logging_collection(camera_select, log_type)
     delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
     
@@ -332,19 +428,26 @@ def delete_serverlogs_by_cutoff(request):
 def build_deleting_routes():
     
     # Bundle all deleting routes
-    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
+    route_group = "delete"
+    url = lambda *url_components: "/".join(["/{camera_select:str}", route_group, *url_components])
     deleting_routes = \
     [
-     Route(url("camerainfo", "by-cutoff", "{target_time}"),
+     Route(url(CAMINFO_COLLECTION_NAME, "by-cutoff", "{target_time}"),
                delete_caminfos_by_cutoff),
      
-     Route(url("backgrounds", "by-cutoff", "{target_time}"),
+     Route(url(CFGINFO_COLLECTION_NAME, "by-cutoff", "{target_time}"),
+               delete_cfginfos_by_cutoff),
+     
+     Route(url(BACKGROUNDS_COLLECTION_NAME, "by-cutoff", "{target_time}"),
                delete_backgrounds_by_cutoff),
      
-     Route(url("objects", "by-cutoff", "{target_time}"),
+     Route(url(OBJECTS_COLLECTION_NAME, "by-cutoff", "{target_time}"),
                delete_objects_by_cutoff),
      
-     Route(url("snapshots", "by-cutoff", "{target_time}"),
+     Route(url(STATIONS_COLLECTION_NAME, "by-cutoff", "{target_time}"),
+               delete_stations_by_cutoff),
+     
+     Route(url(SNAPSHOTS_COLLECTION_NAME, "by-cutoff", "{target_time}"),
                delete_snapshots_by_cutoff),
      
      Route(url("all-realtime", "by-cutoff", "{target_time}"),
@@ -366,9 +469,11 @@ def build_deleting_routes():
 # Establish (global!) variable used to access the persistent image folder
 IMAGE_FOLDER = build_base_image_pathing()
 
+# Hard-code (global!) variable used to indicate timing field
+DEFAULT_EMS_FIELD = "_id"
+
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
-COLLECTION_NAME = "delete"
 
 
 # ---------------------------------------------------------------------------------------------------------------------

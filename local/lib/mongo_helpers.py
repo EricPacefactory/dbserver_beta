@@ -209,6 +209,45 @@ def convert_to_many(data_to_insert):
 # .....................................................................................................................
 # .....................................................................................................................
 
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Indexing helpers
+
+# .....................................................................................................................
+
+def check_collection_indexing(collection_ref, index_key_list):
+    
+    ''' Helper function which can be used to check if a set of key-names are indexed already '''
+    
+    # Get current keys being indexed
+    current_index_info_dict = collection_ref.index_information()
+    
+    # Loop over all target keys and check if they're in the set of keys already indexed
+    target_set_list = []
+    for each_target_key in index_key_list:
+        target_is_set = any(each_target_key in each_key for each_key in current_index_info_dict.keys())
+        target_set_list.append(target_is_set)
+    
+    # Consider the indexes set if all the target keys are already set
+    indexes_already_set = all(target_set_list)
+    
+    return indexes_already_set
+
+# .....................................................................................................................
+
+def set_collection_indexing(collection_ref, index_key_list):
+    
+    ''' Helper function which can be used to set up indexing on a list of key-names '''
+    
+    # Add each key, one-by-one to the collection indexing
+    mongo_response_list = [collection_ref.create_index(each_target_key) for each_target_key in index_key_list]
+    
+    return mongo_response_list
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Mongo client helpers
 
