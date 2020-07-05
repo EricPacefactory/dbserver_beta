@@ -54,7 +54,7 @@ from time import perf_counter
 from local.lib.mongo_helpers import connect_to_mongo, check_collection_indexing, set_collection_indexing
 
 from local.lib.query_helpers import start_end_times_to_epoch_ms
-from local.lib.query_helpers import get_all_ids, get_one_metadata, get_newest_metadata
+from local.lib.query_helpers import get_all_ids, get_one_metadata, get_newest_metadata, get_oldest_metadata
 
 from local.lib.response_helpers import bad_request_response, no_data_response
 
@@ -109,6 +109,30 @@ def find_by_time_range(collection_ref, start_ems, end_ems, *, return_ids_only):
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Create station routes
+
+# .....................................................................................................................
+
+def stations_get_oldest_metadata(request):
+    
+    '''
+    Returns oldest station data entry. Can be used along with the 'get newest' route to figure
+    out the bounding times for station data
+    (though interpretation is slightly more complex due to station data representing intervals of time...)
+    '''
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Get data from db
+    collection_ref = get_station_collection(camera_select)
+    no_oldest_metadata, metadata_dict = get_oldest_metadata(collection_ref, FIRST_EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_oldest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -286,6 +310,9 @@ def build_station_routes():
     url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     station_routes = \
     [
+     Route(url("get-oldest-metadata"),
+               stations_get_oldest_metadata),
+     
      Route(url("get-newest-metadata"),
                stations_get_newest_metadata),
      
