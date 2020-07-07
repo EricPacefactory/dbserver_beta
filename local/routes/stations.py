@@ -195,7 +195,7 @@ def stations_get_one_metadata_by_id(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    station_full_id = int(request.path_params["station_full_id"])
+    station_full_id = int(request.path_params["station_data_id"])
     
     # Request data from the db
     collection_ref = get_station_collection(camera_select)
