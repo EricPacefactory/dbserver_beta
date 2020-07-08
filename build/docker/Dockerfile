@@ -2,7 +2,7 @@
 #%% Base setup
 
 # Start with ubuntu-python base
-FROM pacefactory/scv2_ubuntupython_base:1.0.0
+FROM pacefactory/scv2_ubuntupython_base:1.0.1
 
 
 # -----------------------------------------------------------------------------
@@ -49,6 +49,6 @@ ENTRYPOINT ["sh", "docker_entrypoint.sh"]
 # To use manually:
 
 # From the project root directory:
-# sudo docker build -t dbserver_image -f ./build/docker/Dockerfile .
-# sudo docker run -d --network="host" -v /tmp/images_dbserver:/home/scv2/images_dbserver --name dbserver dbserver_image
+# docker build -t dbserver_image -f ./build/docker/Dockerfile .
+# docker run -d --network="host" -v /tmp/images_dbserver:/home/scv2/images_dbserver --name dbserver dbserver_image
 
