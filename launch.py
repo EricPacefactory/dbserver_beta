@@ -11,6 +11,7 @@ Created on Fri Feb  7 17:04:16 2020
 #%% Imports
 
 import os
+import signal
 
 from collections import OrderedDict
 
@@ -68,8 +69,30 @@ def build_all_routes():
 
 # .....................................................................................................................
 
+def register_shutdown_command():
+    
+    ''' Awkward hack to get starlette server to close on SIGTERM signals '''
+    
+    def convert_sigterm_to_keyboard_interrupt(signal_number, stack_frame):
+        
+        # Some feedback about catching kill signal
+        print("", "", "*" * 48, "Kill signal received! ({})".format(signal_number), "*" * 48, "", sep = "\n")
+        
+        # Raise a keyboard interrupt, which starlette will respond to! (unlike SIGTERM)
+        raise KeyboardInterrupt
+    
+    signal.signal(signal.SIGTERM, convert_sigterm_to_keyboard_interrupt)
+    
+    return
+
+# .....................................................................................................................
+
 def asgi_startup():
-    pass
+    
+    # Speed up shutdown when calling 'docker stop ...'
+    register_shutdown_command()
+    
+    return
 
 # .....................................................................................................................
 # .....................................................................................................................
