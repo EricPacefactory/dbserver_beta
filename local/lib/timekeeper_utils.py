@@ -164,6 +164,20 @@ def isoformat_to_epoch_ms(datetime_isoformat_string):
 
 # .....................................................................................................................
 
+def datetime_to_human_readable_string(input_datetime):
+    
+    '''
+    Converts a datetime object into a 'human friendly' string
+    Example:
+        "2019-01-30 05:11:33 PM (-0400 UTC)"
+    
+    Note: This function assumes the datetime object has timezone information (tzinfo)
+    '''
+    
+    return input_datetime.strftime("%Y-%m-%d %I:%M:%S %p (%z UTC)")
+
+# .....................................................................................................................
+
 def datetime_to_isoformat_string(input_datetime):
     
     '''
