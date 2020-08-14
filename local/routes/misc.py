@@ -292,6 +292,9 @@ def build_help_route(routes_ordered_dict):
     
     def help_page(request):
         
+        # For clarity
+        unique_methods = ["POST", "PUT", "DELETE"]
+        
         # Initialize output html listing
         html_list = ["<title>DB Server Help</title>",
                      "",
@@ -306,14 +309,25 @@ def build_help_route(routes_ordered_dict):
         # Build sections for each set of routes
         for each_route_title, each_route_list in routes_ordered_dict.items():
             
-            # First pull out the actual route url (as strings) for printing
-            route_urls_gen = (each_route.path_format for each_route in each_route_list)
-            
-            # Build a little section for each set of routes, and add some spacing just for nicer looking raw html
+            # Build the section title html
             title_str = "<h3>{}</h3>".format(each_route_title)
-            line_strs_gen = ("  <p>{}</p>".format(each_url) for each_url in route_urls_gen)
-            html_list += ["", title_str, *line_strs_gen]
-
+            html_list += ["", title_str]
+            
+            # Build each url entry
+            for each_route in each_route_list:
+                
+                # Pull out the route url for printing & check if the route allows for posting
+                each_url = each_route.path_format
+                each_unique_methods_list = [e_method for e_method in each_route.methods if e_method in unique_methods]
+                has_unique_methods = (len(each_unique_methods_list) > 0)
+                unique_methods_str = ", ".join(each_unique_methods_list)
+                unique_methods_html = "<b><em>{}</em></b>&nbsp;&nbsp;".format(unique_methods_str)
+                
+                # Build the html for displaying each route
+                post_tag_html = unique_methods_html if has_unique_methods else ""
+                each_url_html = "  <p>{}{}</p>".format(post_tag_html, each_url)
+                html_list.append(each_url_html)
+        
         # Add some additional info to html
         _, isoformat_example, epoch_ms_example = get_current_timing_info()
         spacer_str = 10 * "&nbsp;"
