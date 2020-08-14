@@ -77,7 +77,6 @@ def get_target_time_query_filter(target_ems):
 def get_time_range_query_filter(start_ems, end_ems):
     return {FIRST_EPOCH_MS_FIELD: {"$lt": end_ems}, FINAL_EPOCH_MS_FIELD: {"$gt": start_ems}}
 
-
 # .....................................................................................................................
 
 def find_by_target_time(collection_ref, target_ems, *, return_ids_only):
