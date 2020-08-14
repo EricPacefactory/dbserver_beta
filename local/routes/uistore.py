@@ -69,12 +69,6 @@ from pymongo import ASCENDING
 
 # .....................................................................................................................
 
-async def retrieve_post_data(request):
-    ''' Helper function used to avoid setting route functions to async '''
-    return await request.json()
-
-# .....................................................................................................................
-
 def get_id_range_query_filter(start_id_range, end_id_range):
     return {ENTRY_ID_FIELD: {"$gte": start_id_range, "$lt": end_id_range}}
 
@@ -96,9 +90,12 @@ def find_by_id_range(collection_ref, start_id, end_id, *, return_ids_only):
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-#%% Create logging routes
+#%% Create uistore routes
 
 # .....................................................................................................................
+
+def uistore_CREATE_DUMMY(): # Included since spyder IDE hides async functions in outline view!
+    return
 
 async def uistore_create_new_entry(request):
     
@@ -106,7 +103,7 @@ async def uistore_create_new_entry(request):
     camera_select = request.path_params["camera_select"]
     entry_id = request.path_params["entry_id"]
     
-    # Get post data & add _id parameter
+    # Get post data & add entry id parameter
     post_data_json = await request.json()
     post_data_json.update({ENTRY_ID_FIELD: entry_id})
     
@@ -216,6 +213,9 @@ def uistore_count_by_id_range(request):
 
 # .....................................................................................................................
 
+def uistore_UPDATE_DUMMY(): # Included since spyder IDE hides async functions in outline view!
+    return
+
 async def uistore_update_one_metadata_by_id(request):
     
     # Get information from route url
@@ -235,7 +235,7 @@ async def uistore_update_one_metadata_by_id(request):
         error_message = "Update cancelled! No POST body data!"
         return bad_request_response(error_message)
     
-    # Bail on updates including _id keys
+    # Bail on updates including entry ID keys
     if ENTRY_ID_FIELD in update_data_dict.keys():
         error_message = "Cannot modify entry ID! Delete old entry & create a new one if needed"
         return not_allowed_response(error_message)
