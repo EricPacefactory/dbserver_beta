@@ -54,9 +54,10 @@ from time import perf_counter
 
 from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
 
-from local.lib.query_helpers import get_one_metadata, get_all_ids
+from local.lib.query_helpers import get_one_metadata, get_all_ids, get_newest_metadata, get_oldest_metadata
 
-from local.lib.response_helpers import post_success_response, bad_request_response, not_allowed_response
+from local.lib.response_helpers import post_success_response, bad_request_response
+from local.lib.response_helpers import not_allowed_response, no_data_response
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
@@ -69,15 +70,15 @@ from pymongo import ASCENDING
 
 # .....................................................................................................................
 
-def get_id_range_query_filter(start_id_range, end_id_range):
-    return {ENTRY_ID_FIELD: {"$gte": start_id_range, "$lt": end_id_range}}
+def get_id_range_query_filter(low_id, high_id):
+    return {ENTRY_ID_FIELD: {"$gte": low_id, "$lt": high_id}}
 
 # .....................................................................................................................
 
-def find_by_id_range(collection_ref, start_id, end_id, *, return_ids_only):
+def find_by_id_range(collection_ref, low_id, high_id, *, return_ids_only):
     
     # Build query
-    filter_dict = get_id_range_query_filter(start_id, end_id)
+    filter_dict = get_id_range_query_filter(low_id, high_id)
     projection_dict = {} if return_ids_only else None
     
     # Request data from the db
@@ -91,6 +92,25 @@ def find_by_id_range(collection_ref, start_id, end_id, *, return_ids_only):
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Create uistore routes
+
+# .....................................................................................................................
+
+def uistore_info(request):
+    
+    ''' Helper route, used to document uistore usage & behaviour '''
+    
+    # Build a message meant to help document this set of routes
+    msg_list = ["The 'uistore' storage is intended for holding data generated from the web UI",
+                "- Data is stored using IDs. These must be non-negative integers",
+                "- Several routes assume the IDs are ordered in some way",
+                "  -> If IDs are not ordered, than these routes can just be ignored",
+                "- Nothing else is assumed about the content of uistore data",
+                "- Entries do not need to be consistently formatted",
+                "- When updating entries, if the target ID doesn't already exist, it will be created!"]
+    
+    info_dict = {"info": msg_list}
+    
+    return UJSONResponse(info_dict)
 
 # .....................................................................................................................
 
@@ -119,6 +139,42 @@ async def uistore_create_new_entry(request):
     return post_success_response()
 
 # .....................................................................................................................
+    
+def uistore_get_newest_metadata(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Get data from db
+    collection_ref = get_uistore_collection(camera_select)
+    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, ENTRY_ID_FIELD)
+    
+    # Handle missing metadata
+    if no_newest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(metadata_dict)
+
+# .....................................................................................................................
+    
+def uistore_get_oldest_metadata(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Get data from db
+    collection_ref = get_uistore_collection(camera_select)
+    no_oldest_metadata, metadata_dict = get_oldest_metadata(collection_ref, ENTRY_ID_FIELD)
+    
+    # Handle missing metadata
+    if no_oldest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(metadata_dict)
+
+# .....................................................................................................................
 
 def uistore_get_one_metadata_by_id(request):
     
@@ -143,12 +199,12 @@ def uistore_get_many_metadata_by_id_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    start_id_range = request.path_params["start_id"]
-    end_id_range = request.path_params["end_id"]
+    low_id = request.path_params["low_id"]
+    high_id = request.path_params["high_id"]
     
     # Request data from the db
     collection_ref = get_uistore_collection(camera_select)
-    query_result = find_by_id_range(collection_ref, start_id_range, end_id_range, return_ids_only = False)
+    query_result = find_by_id_range(collection_ref, low_id, high_id, return_ids_only = False)
     
     # Convert to dictionary, with entry ids as keys
     return_result = {each_result[ENTRY_ID_FIELD]: each_result for each_result in query_result}
@@ -177,12 +233,12 @@ def uistore_get_ids_by_id_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    start_id_range = request.path_params["start_id"]
-    end_id_range = request.path_params["end_id"]
+    low_id = request.path_params["low_id"]
+    high_id = request.path_params["high_id"]
     
     # Request data from the db
     collection_ref = get_uistore_collection(camera_select)
-    query_result = find_by_id_range(collection_ref, start_id_range, end_id_range, return_ids_only = True)
+    query_result = find_by_id_range(collection_ref, low_id, high_id, return_ids_only = True)
     
     # Pull out the entry IDs into a list, instead of returning a list of dictionaries
     return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
@@ -195,11 +251,11 @@ def uistore_count_by_id_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    start_id_range = request.path_params["start_id"]
-    end_id_range = request.path_params["end_id"]
+    low_id = request.path_params["low_id"]
+    high_id = request.path_params["high_id"]
     
     # Build query
-    query_dict = get_id_range_query_filter(start_id_range, end_id_range)
+    query_dict = get_id_range_query_filter(low_id, high_id)
     projection_dict = None
     
     # Request data from the db
@@ -282,14 +338,14 @@ def uistore_delete_many_metadata_by_id_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    start_id_range = request.path_params["start_id"]
-    end_id_range = request.path_params["end_id"]
+    low_id = request.path_params["low_id"]
+    high_id = request.path_params["high_id"]
     
     # Start timing for feedback
     t_start = perf_counter()
     
     # Send deletion command to the db
-    filter_dict = get_id_range_query_filter(start_id_range, end_id_range)
+    filter_dict = get_id_range_query_filter(low_id, high_id)
     collection_ref = get_uistore_collection(camera_select)
     delete_response = collection_ref.delete_many(filter_dict)
     
@@ -323,23 +379,31 @@ def build_uistore_routes():
     url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     uistore_routes = \
     [
+     Route("/{}/info".format(COLLECTION_NAME), uistore_info),
+     
      Route(url("create-new-metadata", "{entry_id:int}"),
                uistore_create_new_entry,
                methods = ["POST"]),
      
+     Route(url("get-newest-metadata"),
+               uistore_get_newest_metadata),
+     
+     Route(url("get-oldest-metadata"),
+               uistore_get_oldest_metadata),
+     
      Route(url("get-one-metadata", "by-id", "{entry_id:int}"),
                uistore_get_one_metadata_by_id),
      
-     Route(url("get-many-metadata", "by-id-range", "{start_id:int}", "{end_id:int}"),
+     Route(url("get-many-metadata", "by-id-range", "{low_id:int}", "{high_id:int}"),
                uistore_get_many_metadata_by_id_range),
      
      Route(url("get-all-ids-list"),
                uistore_get_all_ids_list),
      
-     Route(url("get-ids-list", "by-id-range", "{start_id:int}", "{end_id:int}"),
+     Route(url("get-ids-list", "by-id-range", "{low_id:int}", "{high_id:int}"),
                uistore_get_ids_by_id_range),
      
-     Route(url("count", "by-id-range", "{start_id:int}", "{end_id:int}"),
+     Route(url("count", "by-id-range", "{low_id:int}", "{high_id:int}"),
                uistore_count_by_id_range),
      
      Route(url("update-one-metadata", "by-id", "{entry_id:int}"),
@@ -349,7 +413,7 @@ def build_uistore_routes():
      Route(url("delete-one-metadata", "by-id", "{entry_id:int}"),
                uistore_delete_one_metadata_by_id),
      
-     Route(url("delete-many-metadata", "by-id-range", "{start_id:int}", "{end_id:int}"),
+     Route(url("delete-many-metadata", "by-id-range", "{low_id:int}", "{high_id:int}"),
                uistore_delete_many_metadata_by_id_range)
     ]
     
