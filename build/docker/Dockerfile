@@ -6,6 +6,14 @@ FROM pacefactory/scv2_ubuntupython_base:1.0.1
 
 
 # -----------------------------------------------------------------------------
+#%% Setup python requirements
+
+# Install python requirements
+COPY requirements.txt /tmp/scv2/requirements.txt
+RUN pip3 install -r /tmp/scv2/requirements.txt
+
+
+# -----------------------------------------------------------------------------
 #%% Set environment variables
 
 # Create a 'home' folder path to avoid storing everything in the root fs
@@ -25,18 +33,10 @@ ENV DBSERVER_IMAGE_FOLDER_PATH      $HOME/images_dbserver
 
 
 # -----------------------------------------------------------------------------
-#%% Setup python
+#%% Launch!
 
 # Work with files outside of the root fs
 WORKDIR $HOME/dbserver
-
-# Install python requirements
-COPY requirements.txt $HOME/dbserver
-RUN pip3 install -r $HOME/dbserver/requirements.txt
-
-
-# -----------------------------------------------------------------------------
-#%% Launch!
 
 # Move system files into the image
 COPY . .
