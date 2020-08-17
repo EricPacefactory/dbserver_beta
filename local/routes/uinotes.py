@@ -93,6 +93,7 @@ def uinotes_info(request):
                 "- Entries will be given timestamps automatically when created",
                 "- Entries must always have certain fields. If these are not given, they will be auto-filled",
                 "- Custom/non-standard fields are fine",
+                "- When updating entries the target ems must already exist, otherwise it will NOT be created!",
                 "- Entries are not auto-deleted! They will persist until manual deletion"]
     
     info_dict = {"info": msg_list,
