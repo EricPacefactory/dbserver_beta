@@ -103,11 +103,11 @@ def uistore_info(request):
     # Build a message meant to help document this set of routes
     msg_list = ["The 'uistore' storage is intended for holding data generated from the web UI",
                 "- Data is stored using IDs. These must be non-negative integers",
-                "- Several routes assume the IDs are ordered in some way",
-                "  -> If IDs are not ordered, than these routes can just be ignored",
+                "- The data should contain fields 'pool' and 'ms_epoch_end' to make use of range-based routes",
                 "- Nothing else is assumed about the content of uistore data",
                 "- Entries do not need to be consistently formatted",
-                "- When updating entries, if the target ID doesn't already exist, it will be created!"]
+                "- When updating entries, if the target ID doesn't already exist, it will be created!",
+                "- Entries are not auto-deleted! They will persist until manual deletion"]
     
     info_dict = {"info": msg_list}
     
@@ -126,10 +126,15 @@ async def uistore_create_new_entry(request):
     
     # Get post data & add entry id parameter
     post_data_json = await request.json()
-    post_data_json.update({ENTRY_ID_FIELD: entry_id})
+    
+    # Create 'default' entry
+    default_store_dict = {ENTRY_ID_FIELD: entry_id}
+    
+    # Overwrite defaults with posted data
+    store_data_json = {**default_store_dict, **post_data_json}
     
     # Send metadata to mongo
-    post_success, mongo_response = post_one_to_mongo(MCLIENT, camera_select, COLLECTION_NAME, post_data_json)
+    post_success, mongo_response = post_one_to_mongo(MCLIENT, camera_select, COLLECTION_NAME, store_data_json)
     
     # Return an error response if there was a problem posting
     if not post_success:
@@ -421,14 +426,14 @@ def build_uistore_routes():
                uistore_get_one_metadata_by_id),
      
      Route(url("get-many-metadata", "by-pool-and-end-time-range",
-               "{pool:str}", "{low_end_ms:int}", "{high_end_ems:int}"),
+               "{pool:str}", "{low_end_ems:int}", "{high_end_ems:int}"),
                uistore_get_many_metadata_by_pool_and_end_time_range),
      
      Route(url("get-all-ids-list"),
                uistore_get_all_ids_list),
      
      Route(url("get-ids-list", "by-pool-and-end-time-range",
-               "{pool:str}", "{low_end_ms:int}", "{high_end_ems:int}"),
+               "{pool:str}", "{low_end_ems:int}", "{high_end_ems:int}"),
                uistore_get_ids_list_by_pool_and_end_time_range),
      
      Route(url("update-one-metadata", "by-id", "{entry_id:int}"),
