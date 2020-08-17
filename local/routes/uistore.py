@@ -53,6 +53,7 @@ from json import JSONDecodeError
 from time import perf_counter
 
 from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
+from local.lib.mongo_helpers import check_collection_indexing, set_collection_indexing
 
 from local.lib.query_helpers import get_one_metadata, get_all_ids, get_newest_metadata, get_oldest_metadata
 
@@ -70,19 +71,19 @@ from pymongo import ASCENDING
 
 # .....................................................................................................................
 
-def get_id_range_query_filter(low_id, high_id):
-    return {ENTRY_ID_FIELD: {"$gte": low_id, "$lt": high_id}}
+def get_pool_and_end_time_range_query_filter(pool, low_end_ems, high_end_ems):
+    return {POOL_FIELD: pool, FINAL_EPOCH_MS_FIELD: {"$gte": low_end_ems, "$lt": high_end_ems}}
 
 # .....................................................................................................................
 
-def find_by_id_range(collection_ref, low_id, high_id, *, return_ids_only):
+def find_by_pool_and_end_time_range(collection_ref, pool, low_end_ems, high_end_ems, *, return_ids_only):
     
     # Build query
-    filter_dict = get_id_range_query_filter(low_id, high_id)
+    filter_dict = get_pool_and_end_time_range_query_filter(pool, low_end_ems, high_end_ems)
     projection_dict = {} if return_ids_only else None
     
     # Request data from the db
-    query_result = collection_ref.find(filter_dict, projection_dict).sort(ENTRY_ID_FIELD, ASCENDING)
+    query_result = collection_ref.find(filter_dict, projection_dict).sort(FINAL_EPOCH_MS_FIELD, ASCENDING)
     
     return query_result
 
@@ -136,10 +137,16 @@ async def uistore_create_new_entry(request):
         error_message = "Error posting data for entry ID: {}".format(entry_id)
         return not_allowed_response(error_message, additional_response_dict)
     
+    # If we get this far, make sure to apply indexing if needed
+    collection_ref = get_uistore_collection(camera_select)
+    indexes_already_set = check_collection_indexing(collection_ref, KEYS_TO_INDEX)
+    if not indexes_already_set:
+        set_collection_indexing(collection_ref, KEYS_TO_INDEX)
+    
     return post_success_response()
 
 # .....................................................................................................................
-    
+
 def uistore_get_newest_metadata(request):
     
     # Get information from route url
@@ -195,16 +202,18 @@ def uistore_get_one_metadata_by_id(request):
 
 # .....................................................................................................................
 
-def uistore_get_many_metadata_by_id_range(request):
+def uistore_get_many_metadata_by_pool_and_end_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    low_id = request.path_params["low_id"]
-    high_id = request.path_params["high_id"]
+    pool = request.path_params["pool"]
+    low_end_ems = request.path_params["low_end_ems"]
+    high_end_ems = request.path_params["high_end_ems"]
     
     # Request data from the db
     collection_ref = get_uistore_collection(camera_select)
-    query_result = find_by_id_range(collection_ref, low_id, high_id, return_ids_only = False)
+    query_result = find_by_pool_and_end_time_range(collection_ref, pool, low_end_ems, high_end_ems,
+                                                   return_ids_only = False)
     
     # Convert to dictionary, with entry ids as keys
     return_result = {each_result[ENTRY_ID_FIELD]: each_result for each_result in query_result}
@@ -229,41 +238,21 @@ def uistore_get_all_ids_list(request):
 
 # .....................................................................................................................
 
-def uistore_get_ids_by_id_range(request):
+def uistore_get_ids_list_by_pool_and_end_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    low_id = request.path_params["low_id"]
-    high_id = request.path_params["high_id"]
+    pool = request.path_params["pool"]
+    low_end_ems = request.path_params["low_end_ems"]
+    high_end_ems = request.path_params["high_end_ems"]
     
     # Request data from the db
     collection_ref = get_uistore_collection(camera_select)
-    query_result = find_by_id_range(collection_ref, low_id, high_id, return_ids_only = True)
+    query_result = find_by_pool_and_end_time_range(collection_ref, pool, low_end_ems, high_end_ems,
+                                                   return_ids_only = True)
     
     # Pull out the entry IDs into a list, instead of returning a list of dictionaries
     return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def uistore_count_by_id_range(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    low_id = request.path_params["low_id"]
-    high_id = request.path_params["high_id"]
-    
-    # Build query
-    query_dict = get_id_range_query_filter(low_id, high_id)
-    projection_dict = None
-    
-    # Request data from the db
-    collection_ref = get_uistore_collection(camera_select)
-    query_result = collection_ref.count_documents(query_dict, projection_dict)
-    
-    # Convert to dictionary with count
-    return_result = {"count": int(query_result)}
     
     return UJSONResponse(return_result)
 
@@ -334,18 +323,19 @@ def uistore_delete_one_metadata_by_id(request):
 
 # .....................................................................................................................
 
-def uistore_delete_many_metadata_by_id_range(request):
+def uistore_delete_many_metadata_by_pool_and_end_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    low_id = request.path_params["low_id"]
-    high_id = request.path_params["high_id"]
+    pool = request.path_params["pool"]
+    low_end_ems = request.path_params["low_end_ems"]
+    high_end_ems = request.path_params["high_end_ems"]
     
     # Start timing for feedback
     t_start = perf_counter()
     
     # Send deletion command to the db
-    filter_dict = get_id_range_query_filter(low_id, high_id)
+    filter_dict = get_pool_and_end_time_range_query_filter(pool, low_end_ems, high_end_ems)
     collection_ref = get_uistore_collection(camera_select)
     delete_response = collection_ref.delete_many(filter_dict)
     
@@ -356,6 +346,42 @@ def uistore_delete_many_metadata_by_id_range(request):
     # Build output to provide feedback about deletion
     return_result = {"time_taken_ms": time_taken_ms,
                      "mongo_response": delete_response}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def uistore_set_indexing(request):
+    
+    '''
+    Hacky function... Used to manually set uistore indexes for a specified camera.
+    Ideally this is handled automatically during posting, but this route can be used to manually set/check indexing
+    '''
+    
+    # Get selected camera & corresponding collection
+    camera_select = request.path_params["camera_select"]
+    collection_ref = get_uistore_collection(camera_select)
+    
+    # Start timing
+    t_start = perf_counter()
+    
+    # First check if the index is already set
+    indexes_already_set = check_collection_indexing(collection_ref, KEYS_TO_INDEX)
+    if indexes_already_set:
+        return_result = {"already_set": True, "indexes": KEYS_TO_INDEX}
+        return UJSONResponse(return_result)
+    
+    # Set indexes on target fields if we haven't already
+    mongo_response_list = set_collection_indexing(collection_ref, KEYS_TO_INDEX)
+    
+    # End timing
+    t_end = perf_counter()
+    time_taken_ms = int(round(1000 * (t_end - t_start)))
+    
+    # Build response for debugging
+    return_result = {"indexes_now_set": True,
+                     "time_taken_ms": time_taken_ms,
+                     "mongo_response_list": mongo_response_list}
     
     return UJSONResponse(return_result)
 
@@ -394,17 +420,16 @@ def build_uistore_routes():
      Route(url("get-one-metadata", "by-id", "{entry_id:int}"),
                uistore_get_one_metadata_by_id),
      
-     Route(url("get-many-metadata", "by-id-range", "{low_id:int}", "{high_id:int}"),
-               uistore_get_many_metadata_by_id_range),
+     Route(url("get-many-metadata", "by-pool-and-end-time-range",
+               "{pool:str}", "{low_end_ms:int}", "{high_end_ems:int}"),
+               uistore_get_many_metadata_by_pool_and_end_time_range),
      
      Route(url("get-all-ids-list"),
                uistore_get_all_ids_list),
      
-     Route(url("get-ids-list", "by-id-range", "{low_id:int}", "{high_id:int}"),
-               uistore_get_ids_by_id_range),
-     
-     Route(url("count", "by-id-range", "{low_id:int}", "{high_id:int}"),
-               uistore_count_by_id_range),
+     Route(url("get-ids-list", "by-pool-and-end-time-range",
+               "{pool:str}", "{low_end_ms:int}", "{high_end_ems:int}"),
+               uistore_get_ids_list_by_pool_and_end_time_range),
      
      Route(url("update-one-metadata", "by-id", "{entry_id:int}"),
                uistore_update_one_metadata_by_id,
@@ -413,8 +438,12 @@ def build_uistore_routes():
      Route(url("delete-one-metadata", "by-id", "{entry_id:int}"),
                uistore_delete_one_metadata_by_id),
      
-     Route(url("delete-many-metadata", "by-id-range", "{low_id:int}", "{high_id:int}"),
-               uistore_delete_many_metadata_by_id_range)
+     Route(url("delete-many-metadata", "by-pool-and-end-time-range",
+               "{pool:str}", "{low_end_ems:int}", "{high_end_ems:int}"),
+               uistore_delete_many_metadata_by_pool_and_end_time_range),
+     
+     Route(url("set-indexing"),
+               uistore_set_indexing)
     ]
     
     return uistore_routes
@@ -428,6 +457,11 @@ def build_uistore_routes():
 
 # Hard-code (global!) variable used to indicate entry (id) access field
 ENTRY_ID_FIELD = "_id"
+
+# Hard-code the list of keys that need indexing
+POOL_FIELD = "pool"
+FINAL_EPOCH_MS_FIELD = "ms_epoch_end"
+KEYS_TO_INDEX = [POOL_FIELD, FINAL_EPOCH_MS_FIELD]
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
