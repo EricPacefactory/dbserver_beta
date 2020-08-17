@@ -416,6 +416,10 @@ def build_uistore_routes():
                uistore_create_new_entry,
                methods = ["POST"]),
      
+     Route(url("update-one-metadata", "by-id", "{entry_id:int}"),
+               uistore_update_one_metadata_by_id,
+               methods = ["POST"]),
+     
      Route(url("get-newest-metadata"),
                uistore_get_newest_metadata),
      
@@ -435,10 +439,6 @@ def build_uistore_routes():
      Route(url("get-ids-list", "by-pool-and-end-time-range",
                "{pool:str}", "{low_end_ems:int}", "{high_end_ems:int}"),
                uistore_get_ids_list_by_pool_and_end_time_range),
-     
-     Route(url("update-one-metadata", "by-id", "{entry_id:int}"),
-               uistore_update_one_metadata_by_id,
-               methods = ["POST"]),
      
      Route(url("delete-one-metadata", "by-id", "{entry_id:int}"),
                uistore_delete_one_metadata_by_id),

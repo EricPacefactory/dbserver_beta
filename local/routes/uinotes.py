@@ -391,6 +391,10 @@ def build_uinotes_routes():
                uinotes_create_new_entry,
                methods = ["POST"]),
      
+     Route(url("update-one-metadata", "by-ems", "{epoch_ms:int}"),
+               uinotes_update_one_metadata_by_ems,
+               methods = ["POST"]),
+     
      Route(url("get-newest-metadata"),
                uinotes_get_newest_metadata),
      
@@ -411,10 +415,6 @@ def build_uinotes_routes():
      
      Route(url("count", "by-time-range", "{start_time}", "{end_time}"),
                uinotes_count_by_time_range),
-     
-     Route(url("update-one-metadata", "by-ems", "{epoch_ms:int}"),
-               uinotes_update_one_metadata_by_ems,
-               methods = ["POST"]),
      
      Route(url("delete-one-metadata", "by-ems", "{epoch_ms:int}"),
                uinotes_delete_one_metadata_by_ems),
