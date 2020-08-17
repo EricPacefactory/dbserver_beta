@@ -123,22 +123,21 @@ async def uistore_create_new_entry(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    entry_id = request.path_params["entry_id"]
     
     # Get post data & add entry id parameter
     post_data_json = await request.json()
     
-    # Create 'default' entry
-    default_store_dict = {ENTRY_ID_FIELD: entry_id}
-    
-    # Overwrite defaults with posted data
-    store_data_json = {**default_store_dict, **post_data_json}
+    # Error out if the post data does not contain an '_id' field
+    if ENTRY_ID_FIELD not in post_data_json.keys():
+        error_message = "Cannot post data without a '{}' key!".format(ENTRY_ID_FIELD)
+        return not_allowed_response(error_message)
     
     # Send metadata to mongo
-    post_success, mongo_response = post_one_to_mongo(MCLIENT, camera_select, COLLECTION_NAME, store_data_json)
+    post_success, mongo_response = post_one_to_mongo(MCLIENT, camera_select, COLLECTION_NAME, post_data_json)
     
     # Return an error response if there was a problem posting
     if not post_success:
+        entry_id = post_data_json[ENTRY_ID_FIELD]
         additional_response_dict = {"mongo_response": mongo_response}
         error_message = "Error posting data for entry ID: {}".format(entry_id)
         return not_allowed_response(error_message, additional_response_dict)
@@ -413,7 +412,7 @@ def build_uistore_routes():
     [
      Route("/{}/info".format(COLLECTION_NAME), uistore_info),
      
-     Route(url("create-new-metadata", "{entry_id:int}"),
+     Route(url("create-new-metadata"),
                uistore_create_new_entry,
                methods = ["POST"]),
      
