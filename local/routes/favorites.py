@@ -132,9 +132,9 @@ def fave_add_entry(request):
     
     # If we succeed, make sure to check/set time indexing, in case it hasn't already been set
     fave_collection_ref = get_favorite_collection(camera_select)
-    fave_index_already_set = check_collection_indexing(fave_collection_ref)
+    fave_index_already_set = check_collection_indexing(fave_collection_ref, KEYS_TO_INDEX)
     if not fave_index_already_set:
-        set_collection_indexing(fave_collection_ref)
+        set_collection_indexing(fave_collection_ref, KEYS_TO_INDEX)
     
     return post_success_response()
 
@@ -288,13 +288,13 @@ def faves_set_indexing(request):
     t_start = perf_counter()
     
     # First check if the index is already set
-    indexes_already_set = check_collection_indexing(collection_ref)
+    indexes_already_set = check_collection_indexing(collection_ref, KEYS_TO_INDEX)
     if indexes_already_set:
-        return_result = {"already_set": True}
+        return_result = {"already_set": True, "indexes": KEYS_TO_INDEX}
         return UJSONResponse(return_result)
     
     # Set indexes on target fields if we haven't already
-    mongo_response_list = set_collection_indexing(collection_ref)
+    mongo_response_list = set_collection_indexing(collection_ref, KEYS_TO_INDEX)
     
     # End timing
     t_end = perf_counter()
@@ -363,6 +363,9 @@ def build_favorite_routes():
 
 # Hard-code (global!) variables used to indicate timing field
 FAVE_ID_FIELD = OBJ_ID_FIELD
+
+# Hard-code the list of keys that need indexing
+KEYS_TO_INDEX = [FIRST_EPOCH_MS_FIELD, FINAL_EPOCH_MS_FIELD]
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
