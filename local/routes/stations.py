@@ -273,7 +273,7 @@ def stations_set_indexing(request):
     # First check if the index is already set
     indexes_already_set = check_collection_indexing(collection_ref, KEYS_TO_INDEX)
     if indexes_already_set:
-        return_result = {"already_set": True}
+        return_result = {"already_set": True, "indexes": KEYS_TO_INDEX}
         return UJSONResponse(return_result)
     
     # Set indexes on target fields if we haven't already
