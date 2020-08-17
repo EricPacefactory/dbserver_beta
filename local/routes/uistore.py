@@ -103,13 +103,14 @@ def uistore_info(request):
     # Build a message meant to help document this set of routes
     msg_list = ["The 'uistore' storage is intended for holding data generated from the web UI",
                 "- Data is stored using IDs. These must be non-negative integers",
-                "- The data should contain fields 'pool' and 'ms_epoch_end' to make use of range-based routes",
+                "- In order to use the range-based routes, the data should contain indexed keys",
                 "- Nothing else is assumed about the content of uistore data",
                 "- Entries do not need to be consistently formatted",
                 "- When updating entries, if the target ID doesn't already exist, it will be created!",
                 "- Entries are not auto-deleted! They will persist until manual deletion"]
     
-    info_dict = {"info": msg_list}
+    info_dict = {"info": msg_list,
+                 "indexes": KEYS_TO_INDEX}
     
     return UJSONResponse(info_dict)
 
@@ -465,7 +466,7 @@ ENTRY_ID_FIELD = "_id"
 
 # Hard-code the list of keys that need indexing
 POOL_FIELD = "pool"
-FINAL_EPOCH_MS_FIELD = "ms_epoch_end"
+FINAL_EPOCH_MS_FIELD = "end"
 KEYS_TO_INDEX = [POOL_FIELD, FINAL_EPOCH_MS_FIELD]
 
 # Connection to mongoDB
