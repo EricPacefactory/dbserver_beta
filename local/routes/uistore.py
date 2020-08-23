@@ -54,8 +54,9 @@ from time import perf_counter
 
 from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
 from local.lib.mongo_helpers import check_collection_indexing, set_collection_indexing
+from local.lib.mongo_helpers import get_collection_names_list, get_camera_names_list
 
-from local.lib.query_helpers import get_one_metadata, get_all_ids, get_newest_metadata, get_oldest_metadata
+from local.lib.query_helpers import get_one_metadata, get_all_ids, get_newest_metadata
 
 from local.lib.response_helpers import post_success_response, bad_request_response
 from local.lib.response_helpers import not_allowed_response, no_data_response
@@ -71,15 +72,15 @@ from pymongo import ASCENDING
 
 # .....................................................................................................................
 
-def get_pool_and_end_time_range_query_filter(pool, low_end_ems, high_end_ems):
-    return {POOL_FIELD: pool, FINAL_EPOCH_MS_FIELD: {"$gte": low_end_ems, "$lt": high_end_ems}}
+def get_end_time_range_query_filter(low_end_ems, high_end_ems):
+    return {FINAL_EPOCH_MS_FIELD: {"$gte": low_end_ems, "$lt": high_end_ems}}
 
 # .....................................................................................................................
 
-def find_by_pool_and_end_time_range(collection_ref, pool, low_end_ems, high_end_ems, *, return_ids_only):
+def find_by_end_time_range(collection_ref, low_end_ems, high_end_ems, *, return_ids_only):
     
     # Build query
-    filter_dict = get_pool_and_end_time_range_query_filter(pool, low_end_ems, high_end_ems)
+    filter_dict = get_end_time_range_query_filter(low_end_ems, high_end_ems)
     projection_dict = {} if return_ids_only else None
     
     # Request data from the db
@@ -102,8 +103,9 @@ def uistore_info(request):
     
     # Build a message meant to help document this set of routes
     msg_list = ["The 'uistore' storage is intended for holding data generated from the web UI",
-                "- Data is stored using IDs. These must be non-negative integers",
-                "- In order to use the range-based routes, the data should contain indexed keys",
+                "- Data is grouped by 'store types', this can be used to separate different categories of data",
+                "- Individual entries are stored using IDs. These must be non-negative integers",
+                "- Range based routes assume an end-time key ({}) is present".format(FINAL_EPOCH_MS_FIELD),
                 "- Nothing else is assumed about the content of uistore data",
                 "- Entries do not need to be consistently formatted",
                 "- When updating entries, if the target ID doesn't already exist, it will be created!",
@@ -116,6 +118,63 @@ def uistore_info(request):
 
 # .....................................................................................................................
 
+def uistore_get_all_store_types(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    
+    # Extract only the uistore related collection names
+    all_collection_names_list = get_collection_names_list(MCLIENT, camera_select)
+    
+    # Iterate over all collections, grab only uistore entries and remove the uistore prefix
+    remove_prefix_idx = len(COLLECTION_NAME_PREFIX)
+    uistore_types_list = []
+    for each_collection_name in all_collection_names_list:
+        
+        # Skip over collection names not related to uistore
+        if not each_collection_name.startswith(COLLECTION_NAME_PREFIX):
+            continue
+        
+        # Remove the name prefix for readability
+        store_type_only = each_collection_name[remove_prefix_idx:]
+        uistore_types_list.append(store_type_only)
+    
+    return UJSONResponse(uistore_types_list)
+
+# .....................................................................................................................
+
+def uistore_all_cameras_get_all_store_types(request):
+    
+    ''' Same as 'uistore_get_all_store_types' but with a loop over all cameras '''
+    
+    # Run id list retrieval for all known cameras
+    aggregate_results_dict = {}
+    camera_names_list = get_camera_names_list(MCLIENT)
+    for each_camera_name in camera_names_list:
+        
+        # Extract only the uistore related collection names
+        all_collection_names_list = get_collection_names_list(MCLIENT, each_camera_name)
+        
+        # Iterate over all collections, grab only uistore entries and remove the uistore prefix
+        remove_prefix_idx = len(COLLECTION_NAME_PREFIX)
+        one_camera_uistore_types_list = []
+        for each_collection_name in all_collection_names_list:
+            
+            # Skip over collection names not related to uistore
+            if not each_collection_name.startswith(COLLECTION_NAME_PREFIX):
+                continue
+            
+            # Remove the name prefix for readability
+            store_type_only = each_collection_name[remove_prefix_idx:]
+            one_camera_uistore_types_list.append(store_type_only)
+        
+        # Store final result for each camera
+        aggregate_results_dict[each_camera_name] = one_camera_uistore_types_list
+    
+    return UJSONResponse(aggregate_results_dict)
+
+# .....................................................................................................................
+
 def uistore_CREATE_DUMMY(): # Included since spyder IDE hides async functions in outline view!
     return
 
@@ -123,17 +182,19 @@ async def uistore_create_new_entry(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
     
-    # Get post data & add entry id parameter
+    # Get post data
     post_data_json = await request.json()
     
-    # Error out if the post data does not contain an '_id' field
+    # Error out if the post data does not contain an id field
     if ENTRY_ID_FIELD not in post_data_json.keys():
         error_message = "Cannot post data without a '{}' key!".format(ENTRY_ID_FIELD)
         return not_allowed_response(error_message)
     
     # Send metadata to mongo
-    post_success, mongo_response = post_one_to_mongo(MCLIENT, camera_select, COLLECTION_NAME, post_data_json)
+    collection_name = get_uistore_collection_name(store_type)
+    post_success, mongo_response = post_one_to_mongo(MCLIENT, camera_select, collection_name, post_data_json)
     
     # Return an error response if there was a problem posting
     if not post_success:
@@ -143,123 +204,12 @@ async def uistore_create_new_entry(request):
         return not_allowed_response(error_message, additional_response_dict)
     
     # If we get this far, make sure to apply indexing if needed
-    collection_ref = get_uistore_collection(camera_select)
+    collection_ref = get_uistore_collection(camera_select, store_type)
     indexes_already_set = check_collection_indexing(collection_ref, KEYS_TO_INDEX)
     if not indexes_already_set:
         set_collection_indexing(collection_ref, KEYS_TO_INDEX)
     
     return post_success_response()
-
-# .....................................................................................................................
-
-def uistore_get_newest_metadata(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    
-    # Get data from db
-    collection_ref = get_uistore_collection(camera_select)
-    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, ENTRY_ID_FIELD)
-    
-    # Handle missing metadata
-    if no_newest_metadata:
-        error_message = "No metadata for {}".format(camera_select)
-        return no_data_response(error_message)
-    
-    return UJSONResponse(metadata_dict)
-
-# .....................................................................................................................
-    
-def uistore_get_oldest_metadata(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    
-    # Get data from db
-    collection_ref = get_uistore_collection(camera_select)
-    no_oldest_metadata, metadata_dict = get_oldest_metadata(collection_ref, ENTRY_ID_FIELD)
-    
-    # Handle missing metadata
-    if no_oldest_metadata:
-        error_message = "No metadata for {}".format(camera_select)
-        return no_data_response(error_message)
-    
-    return UJSONResponse(metadata_dict)
-
-# .....................................................................................................................
-
-def uistore_get_one_metadata_by_id(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    entry_id = request.path_params["entry_id"]
-    
-    # Get data from db
-    collection_ref = get_uistore_collection(camera_select)
-    query_result = get_one_metadata(collection_ref, ENTRY_ID_FIELD, entry_id)
-
-    # Deal with missing data
-    if not query_result:
-        error_message = "No metadata for id {}".format(entry_id)
-        return bad_request_response(error_message)
-    
-    return UJSONResponse(query_result)
-
-# .....................................................................................................................
-
-def uistore_get_many_metadata_by_pool_and_end_time_range(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    pool = request.path_params["pool"]
-    low_end_ems = request.path_params["low_end_ems"]
-    high_end_ems = request.path_params["high_end_ems"]
-    
-    # Request data from the db
-    collection_ref = get_uistore_collection(camera_select)
-    query_result = find_by_pool_and_end_time_range(collection_ref, pool, low_end_ems, high_end_ems,
-                                                   return_ids_only = False)
-    
-    # Convert to dictionary, with entry ids as keys
-    return_result = {each_result[ENTRY_ID_FIELD]: each_result for each_result in query_result}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def uistore_get_all_ids_list(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    
-    # Get data from db
-    collection_ref = get_uistore_collection(camera_select)
-    query_result = get_all_ids(collection_ref)
-    
-    # Pull out the entry IDs into a list, instead of returning a list of dictionaries
-    return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def uistore_get_ids_list_by_pool_and_end_time_range(request):
-    
-    # Get information from route url
-    camera_select = request.path_params["camera_select"]
-    pool = request.path_params["pool"]
-    low_end_ems = request.path_params["low_end_ems"]
-    high_end_ems = request.path_params["high_end_ems"]
-    
-    # Request data from the db
-    collection_ref = get_uistore_collection(camera_select)
-    query_result = find_by_pool_and_end_time_range(collection_ref, pool, low_end_ems, high_end_ems,
-                                                   return_ids_only = True)
-    
-    # Pull out the entry IDs into a list, instead of returning a list of dictionaries
-    return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
-    
-    return UJSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -270,6 +220,7 @@ async def uistore_update_one_metadata_by_id(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
     entry_id = request.path_params["entry_id"]
     
     try:
@@ -295,10 +246,158 @@ async def uistore_update_one_metadata_by_id(request):
     update_data_dict = {"$set": update_data_dict}
     
     # Send update command to the db
-    collection_ref = get_uistore_collection(camera_select)
+    collection_ref = get_uistore_collection(camera_select, store_type)
     update_response = collection_ref.update_one(filter_dict, update_data_dict, upsert = True)
     
     return UJSONResponse(update_response)
+
+# .....................................................................................................................
+
+def uistore_get_example_metadata(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
+    
+    # Get data from db
+    collection_ref = get_uistore_collection(camera_select, store_type)
+    no_newest_metadata, metadata_dict = get_newest_metadata(collection_ref, ENTRY_ID_FIELD)
+    
+    # Handle missing metadata
+    if no_newest_metadata:
+        error_message = "No metadata for {}".format(camera_select)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(metadata_dict)
+
+# .....................................................................................................................
+
+def uistore_get_one_metadata_by_id(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
+    entry_id = request.path_params["entry_id"]
+    
+    # Get data from db
+    collection_ref = get_uistore_collection(camera_select, store_type)
+    query_result = get_one_metadata(collection_ref, ENTRY_ID_FIELD, entry_id)
+
+    # Deal with missing data
+    if not query_result:
+        error_message = "No metadata for id {}".format(entry_id)
+        return bad_request_response(error_message)
+    
+    return UJSONResponse(query_result)
+
+# .....................................................................................................................
+
+def uistore_get_many_metadata_by_end_time_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
+    low_end_ems = request.path_params["low_end_ems"]
+    high_end_ems = request.path_params["high_end_ems"]
+    
+    # Request data from the db
+    collection_ref = get_uistore_collection(camera_select, store_type)
+    query_result = find_by_end_time_range(collection_ref, low_end_ems, high_end_ems, return_ids_only = False)
+    
+    # Convert to dictionary, with entry ids as keys
+    return_result = {each_result[ENTRY_ID_FIELD]: each_result for each_result in query_result}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def uistore_all_cameras_get_many_metadata_by_end_time_range(request):
+    
+    ''' Same as 'uistore_get_many_metadata_by_end_time_range' but with a loop over all cameras '''
+    
+    # Get information from route url
+    store_type = request.path_params["store_type"]
+    low_end_ems = request.path_params["low_end_ems"]
+    high_end_ems = request.path_params["high_end_ems"]
+    
+    # Run metadata retrieval for all known cameras
+    aggregate_results_dict = {}
+    camera_names_list = get_camera_names_list(MCLIENT)
+    for each_camera_name in camera_names_list:
+            
+        # Request data from the db
+        collection_ref = get_uistore_collection(each_camera_name, store_type)
+        query_result = find_by_end_time_range(collection_ref, low_end_ems, high_end_ems, return_ids_only = False)
+        
+        # Convert to dictionary, with entry ids as keys and store result for each camera
+        one_camera_result = {each_result[ENTRY_ID_FIELD]: each_result for each_result in query_result}
+        aggregate_results_dict[each_camera_name] = one_camera_result
+    
+    return UJSONResponse(aggregate_results_dict)
+
+# .....................................................................................................................
+
+def uistore_get_all_ids_list(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
+    
+    # Get data from db
+    collection_ref = get_uistore_collection(camera_select, store_type)
+    query_result = get_all_ids(collection_ref)
+    
+    # Pull out the entry IDs into a list, instead of returning a list of dictionaries
+    return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def uistore_get_ids_list_by_end_time_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
+    low_end_ems = request.path_params["low_end_ems"]
+    high_end_ems = request.path_params["high_end_ems"]
+    
+    # Request data from the db
+    collection_ref = get_uistore_collection(camera_select, store_type)
+    query_result = find_by_end_time_range(collection_ref, low_end_ems, high_end_ems, return_ids_only = True)
+    
+    # Pull out the entry IDs into a list, instead of returning a list of dictionaries
+    return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def uistore_all_cameras_get_ids_list_by_end_time_range(request):
+    
+    ''' Same as 'uistore_get_ids_list_by_end_time_range' but with a loop over all cameras '''
+    
+    # Get information from route url
+    store_type = request.path_params["store_type"]
+    low_end_ems = request.path_params["low_end_ems"]
+    high_end_ems = request.path_params["high_end_ems"]
+    
+    # Run id list retrieval for all known cameras
+    aggregate_results_dict = {}
+    camera_names_list = get_camera_names_list(MCLIENT)
+    for each_camera_name in camera_names_list:
+        
+        # Request data from the db
+        collection_ref = get_uistore_collection(each_camera_name, store_type)
+        query_result = find_by_end_time_range(collection_ref, low_end_ems, high_end_ems, return_ids_only = True)
+        
+        # Pull out the entry IDs into a list, instead of returning a list of dictionaries & store for each camera
+        one_camera_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
+        aggregate_results_dict[each_camera_name] = one_camera_result
+        
+        print(each_camera_name, one_camera_result)
+    
+    return UJSONResponse(aggregate_results_dict)
 
 # .....................................................................................................................
 
@@ -306,6 +405,7 @@ def uistore_delete_one_metadata_by_id(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
+    store_type = request.path_params["store_type"]
     entry_id = request.path_params["entry_id"]
     
     # Start timing for feedback
@@ -313,7 +413,7 @@ def uistore_delete_one_metadata_by_id(request):
     
     # Send deletion command to the db
     filter_dict = {ENTRY_ID_FIELD: entry_id}
-    collection_ref = get_uistore_collection(camera_select)
+    collection_ref = get_uistore_collection(camera_select, store_type)
     delete_response = collection_ref.delete_one(filter_dict)
     
     # End timing
@@ -328,11 +428,11 @@ def uistore_delete_one_metadata_by_id(request):
 
 # .....................................................................................................................
 
-def uistore_delete_many_metadata_by_pool_and_end_time_range(request):
+def uistore_delete_many_metadata_by_end_time_range(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    pool = request.path_params["pool"]
+    store_type = request.path_params["store_type"]
     low_end_ems = request.path_params["low_end_ems"]
     high_end_ems = request.path_params["high_end_ems"]
     
@@ -340,8 +440,8 @@ def uistore_delete_many_metadata_by_pool_and_end_time_range(request):
     t_start = perf_counter()
     
     # Send deletion command to the db
-    filter_dict = get_pool_and_end_time_range_query_filter(pool, low_end_ems, high_end_ems)
-    collection_ref = get_uistore_collection(camera_select)
+    filter_dict = get_end_time_range_query_filter(low_end_ems, high_end_ems)
+    collection_ref = get_uistore_collection(camera_select, store_type)
     delete_response = collection_ref.delete_many(filter_dict)
     
     # End timing
@@ -365,7 +465,8 @@ def uistore_set_indexing(request):
     
     # Get selected camera & corresponding collection
     camera_select = request.path_params["camera_select"]
-    collection_ref = get_uistore_collection(camera_select)
+    store_type = request.path_params["store_type"]
+    collection_ref = get_uistore_collection(camera_select, store_type)
     
     # Start timing
     t_start = perf_counter()
@@ -399,55 +500,79 @@ def uistore_set_indexing(request):
 
 # .....................................................................................................................
 
-def get_uistore_collection(camera_select):
-    return MCLIENT[camera_select][COLLECTION_NAME]
+def get_uistore_collection_name(store_type):
+    return "".join([COLLECTION_NAME_PREFIX, store_type])
+
+# .....................................................................................................................
+
+def get_uistore_collection(camera_select, store_type):
+    collection_name = get_uistore_collection_name(store_type)
+    return MCLIENT[camera_select][collection_name]
 
 # .....................................................................................................................
 
 def build_uistore_routes():
     
+    # Build function for creating single-camera routes
+    one_camera_component = "/{camera_select:str}"
+    url = lambda *url_components: "/".join([one_camera_component, COLLECTION_BASE_NAME, *url_components])
+    
+    # Build function for creating 'all cameras' routes
+    all_cameras_component = "/all-cameras-{}".format(COLLECTION_BASE_NAME)
+    all_cameras_url = lambda *url_components: "/".join([all_cameras_component, *url_components])
+    
     # Bundle all ui storage routes
-    url = lambda *url_components: "/".join(["/{camera_select:str}", COLLECTION_NAME, *url_components])
     uistore_routes = \
     [
-     Route("/{}/info".format(COLLECTION_NAME), uistore_info),
+     Route("/{}/info".format(COLLECTION_BASE_NAME), uistore_info),
      
-     Route(url("create-new-metadata"),
+     Route(url("get-all-store-types"),
+               uistore_get_all_store_types),
+     
+     Route(all_cameras_url("get-all-store-types"),
+                           uistore_all_cameras_get_all_store_types),
+     
+     Route(url("{store_type:str}", "create-new-metadata"),
                uistore_create_new_entry,
                methods = ["POST"]),
      
-     Route(url("update-one-metadata", "by-id", "{entry_id:int}"),
+     Route(url("{store_type:str}","update-one-metadata", "by-id", "{entry_id:int}"),
                uistore_update_one_metadata_by_id,
                methods = ["POST"]),
      
-     Route(url("get-newest-metadata"),
-               uistore_get_newest_metadata),
+     Route(url("{store_type:str}","get-example-metadata"),
+               uistore_get_example_metadata),
      
-     Route(url("get-oldest-metadata"),
-               uistore_get_oldest_metadata),
-     
-     Route(url("get-one-metadata", "by-id", "{entry_id:int}"),
+     Route(url("{store_type:str}","get-one-metadata", "by-id", "{entry_id:int}"),
                uistore_get_one_metadata_by_id),
      
-     Route(url("get-many-metadata", "by-pool-and-end-time-range",
-               "{pool:str}", "{low_end_ems:int}", "{high_end_ems:int}"),
-               uistore_get_many_metadata_by_pool_and_end_time_range),
+     Route(url("{store_type:str}","get-many-metadata", "by-end-time-range",
+               "{low_end_ems:int}", "{high_end_ems:int}"),
+               uistore_get_many_metadata_by_end_time_range),
      
-     Route(url("get-all-ids-list"),
+     Route(all_cameras_url("{store_type:str}","get-many-metadata", "by-end-time-range",
+                           "{low_end_ems:int}", "{high_end_ems:int}"),
+                           uistore_all_cameras_get_many_metadata_by_end_time_range),
+     
+     Route(url("{store_type:str}", "get-all-ids-list"),
                uistore_get_all_ids_list),
      
-     Route(url("get-ids-list", "by-pool-and-end-time-range",
-               "{pool:str}", "{low_end_ems:int}", "{high_end_ems:int}"),
-               uistore_get_ids_list_by_pool_and_end_time_range),
+     Route(url("{store_type:str}", "get-ids-list", "by-end-time-range",
+               "{low_end_ems:int}", "{high_end_ems:int}"),
+               uistore_get_ids_list_by_end_time_range),
      
-     Route(url("delete-one-metadata", "by-id", "{entry_id:int}"),
+     Route(all_cameras_url("{store_type:str}","get-ids-list", "by-end-time-range",
+                           "{low_end_ems:int}", "{high_end_ems:int}"),
+                           uistore_all_cameras_get_ids_list_by_end_time_range),
+     
+     Route(url("{store_type:str}", "delete-one-metadata", "by-id", "{entry_id:int}"),
                uistore_delete_one_metadata_by_id),
      
-     Route(url("delete-many-metadata", "by-pool-and-end-time-range",
-               "{pool:str}", "{low_end_ems:int}", "{high_end_ems:int}"),
-               uistore_delete_many_metadata_by_pool_and_end_time_range),
+     Route(url("{store_type:str}", "delete-many-metadata", "by-end-time-range",
+               "{low_end_ems:int}", "{high_end_ems:int}"),
+               uistore_delete_many_metadata_by_end_time_range),
      
-     Route(url("set-indexing"),
+     Route(url("{store_type:str}", "set-indexing"),
                uistore_set_indexing)
     ]
     
@@ -464,13 +589,15 @@ def build_uistore_routes():
 ENTRY_ID_FIELD = "_id"
 
 # Hard-code the list of keys that need indexing
-POOL_FIELD = "pool"
 FINAL_EPOCH_MS_FIELD = "end"
-KEYS_TO_INDEX = [POOL_FIELD, FINAL_EPOCH_MS_FIELD]
+KEYS_TO_INDEX = [FINAL_EPOCH_MS_FIELD]
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()
-COLLECTION_NAME = "uistore"
+COLLECTION_BASE_NAME = "uistore"
+
+# Set shared uistore prefix indicator
+COLLECTION_NAME_PREFIX = "{}-".format(COLLECTION_BASE_NAME)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
