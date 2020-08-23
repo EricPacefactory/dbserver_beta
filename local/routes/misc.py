@@ -189,14 +189,14 @@ def get_document_count_tree(request):
     
     # Loop over every collection of every camera and count all documents
     doc_count_tree = {}
-    camera_names_list = get_camera_names_list(MCLIENT)
+    camera_names_list = sorted(get_camera_names_list(MCLIENT))
     for each_camera_name in camera_names_list:
         
         # Add each camera name to the tree
         doc_count_tree[each_camera_name] = {}
         
         # Loop over all collections for the given camera
-        camera_collection_names_list = get_collection_names_list(MCLIENT, each_camera_name)
+        camera_collection_names_list = sorted(get_collection_names_list(MCLIENT, each_camera_name))
         for each_collection_name in camera_collection_names_list:
             
             # Get the document count for each collection
