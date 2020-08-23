@@ -53,7 +53,7 @@ from time import perf_counter
 from shutil import rmtree, disk_usage
 
 from local.lib.mongo_helpers import check_mongo_connection, connect_to_mongo
-from local.lib.mongo_helpers import get_camera_names_list, remove_camera_entry
+from local.lib.mongo_helpers import get_camera_names_list, get_collection_names_list, remove_camera_entry
 from local.lib.timekeeper_utils import get_local_datetime, datetime_to_isoformat_string, datetime_to_epoch_ms
 from local.lib.image_pathing import build_base_image_pathing, build_camera_image_path
 from local.lib.response_helpers import not_allowed_response
@@ -183,6 +183,33 @@ def get_disk_usage_for_images(request):
 
 # .....................................................................................................................
 
+def get_document_count_tree(request):
+    
+    ''' Function which lists all database -> collection -> document counts '''
+    
+    # Loop over every collection of every camera and count all documents
+    doc_count_tree = {}
+    camera_names_list = get_camera_names_list(MCLIENT)
+    for each_camera_name in camera_names_list:
+        
+        # Add each camera name to the tree
+        doc_count_tree[each_camera_name] = {}
+        
+        # Loop over all collections for the given camera
+        camera_collection_names_list = get_collection_names_list(MCLIENT, each_camera_name)
+        for each_collection_name in camera_collection_names_list:
+            
+            # Get the document count for each collection
+            collection_ref = MCLIENT[each_camera_name][each_collection_name]
+            collection_document_count = collection_ref.count_documents({})
+            
+            # Store results nested by camera & collection name
+            doc_count_tree[each_camera_name][each_collection_name] = collection_document_count
+    
+    return  UJSONResponse(doc_count_tree)
+
+# .....................................................................................................................
+
 def remove_one_camera(request):
     
     ''' Nuclear route. Completely removes a camera (+ image data) from the system '''
@@ -286,7 +313,7 @@ def remove_all_cameras(request):
 def build_help_route(routes_ordered_dict):
     
     '''
-    Function used to create the help page. Should be used after creating all other routes 
+    Function used to create the help page. Should be used after creating all other routes
     Returns a 'list' of routes, although the list is only 1 element long! (the help route itself)
     '''
     
@@ -361,6 +388,7 @@ def build_misc_routes():
      Route("/is-alive", is_alive_check),
      Route("/get-all-camera-names", cameras_get_all_names),
      Route("/get-disk-usage", get_disk_usage_for_images),
+     Route("/get-document-count-tree", get_document_count_tree),
      Route("/remove/one-camera/{camera_select:str}/{sanity_check}", remove_one_camera),
      Route("/remove/all-cameras/{sanity_check}", remove_all_cameras)
     ]
