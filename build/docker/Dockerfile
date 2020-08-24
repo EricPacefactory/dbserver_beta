@@ -2,7 +2,7 @@
 #%% Base setup
 
 # Start with ubuntu-python base
-FROM pacefactory/scv2_ubuntupython_base:1.0.1
+FROM pacefactory/scv2_ubuntupython_base:1.0.2
 
 
 # -----------------------------------------------------------------------------
@@ -10,7 +10,8 @@ FROM pacefactory/scv2_ubuntupython_base:1.0.1
 
 # Install python requirements
 COPY requirements.txt /tmp/scv2/requirements.txt
-RUN pip3 install -r /tmp/scv2/requirements.txt
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install -r /tmp/scv2/requirements.txt
 
 
 # -----------------------------------------------------------------------------
