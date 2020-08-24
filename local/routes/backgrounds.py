@@ -53,7 +53,7 @@ import base64
 
 from local.lib.mongo_helpers import connect_to_mongo
 
-from local.lib.query_helpers import start_end_times_to_epoch_ms
+from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
 from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_newest_metadata
 from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
 from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
@@ -116,7 +116,8 @@ def bg_get_active_image(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    target_ems = request.path_params["epoch_ms"]
+    target_time = request.path_params["target_time"]
+    target_ems = url_time_to_epoch_ms(target_time)
     
     # Find the active metadata entry, so we can grab the corresponding image path
     collection_ref = get_background_collection(camera_select)
@@ -241,7 +242,8 @@ def bg_get_active_metadata(request):
     
     # Get information from route url
     camera_select = request.path_params["camera_select"]
-    target_ems = request.path_params["epoch_ms"]
+    target_time = request.path_params["target_time"]
+    target_ems = url_time_to_epoch_ms(target_time)
     
     # Find the active metadata entry, so we can grab the corresponding image path
     collection_ref = get_background_collection(camera_select)
@@ -360,7 +362,7 @@ def build_background_routes():
      Route(url("get-one-metadata", "by-ems", "{epoch_ms:int}"),
                bg_get_one_metadata),
      
-     Route(url("get-active-metadata", "by-ems", "{epoch_ms:int}"),
+     Route(url("get-active-metadata", "by-time-target", "{target_time}"),
                bg_get_active_metadata),
      
      Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
@@ -372,7 +374,7 @@ def build_background_routes():
      Route(url("get-one-image", "by-ems", "{epoch_ms:int}"),
                bg_get_one_image),
      
-     Route(url("get-active-image", "by-ems", "{epoch_ms:int}"),
+     Route(url("get-active-image", "by-time-target", "{target_time}"),
                bg_get_active_image),
      
      Route(url("get-one-b64-jpg", "by-ems", "{epoch_ms:int}"),
