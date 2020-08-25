@@ -536,14 +536,14 @@ def build_uistore_routes():
                uistore_create_new_entry,
                methods = ["POST"]),
      
-     Route(url("{store_type:str}","update-one-metadata", "by-id", "{entry_id:int}"),
+     Route(url("{store_type:str}","update-one-metadata", "by-id", "{entry_id:str}"),
                uistore_update_one_metadata_by_id,
                methods = ["POST"]),
      
      Route(url("{store_type:str}","get-example-metadata"),
                uistore_get_example_metadata),
      
-     Route(url("{store_type:str}","get-one-metadata", "by-id", "{entry_id:int}"),
+     Route(url("{store_type:str}","get-one-metadata", "by-id", "{entry_id:str}"),
                uistore_get_one_metadata_by_id),
      
      Route(url("{store_type:str}","get-many-metadata", "by-end-time-range",
@@ -565,7 +565,7 @@ def build_uistore_routes():
                            "{low_end_ems:int}", "{high_end_ems:int}"),
                            uistore_all_cameras_get_ids_list_by_end_time_range),
      
-     Route(url("{store_type:str}", "delete-one-metadata", "by-id", "{entry_id:int}"),
+     Route(url("{store_type:str}", "delete-one-metadata", "by-id", "{entry_id:str}"),
                uistore_delete_one_metadata_by_id),
      
      Route(url("{store_type:str}", "delete-many-metadata", "by-end-time-range",
