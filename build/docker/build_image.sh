@@ -8,6 +8,19 @@ image_name="dbserver_image"
 
 
 # -------------------------------------------------------------------------
+# Prompt to run git pull
+
+# Assume no by default, since we don't want to modify files accidentally
+container_restart="always"
+echo ""
+read -p "Run git pull before build? (y/[n]) " user_response
+case "$user_response" in
+  y|Y ) git pull;;
+  * ) ;;
+esac
+
+
+# -------------------------------------------------------------------------
 # Automated commands
 
 # Get shared pathing info
