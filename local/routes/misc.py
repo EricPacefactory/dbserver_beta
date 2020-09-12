@@ -343,9 +343,16 @@ def build_help_route(routes_ordered_dict):
             # Build each url entry
             for each_route in each_route_list:
                 
-                # Pull out the route url for printing & check if the route allows for posting
-                each_url = each_route.path_format
-                each_unique_methods_list = [e_method for e_method in each_route.methods if e_method in unique_methods]
+                # Pull out the route url for printing & check for route methods (GET, POST etc.)
+                each_url = each_route.path
+                try:
+                    each_unique_methods_list = [e_meth for e_meth in each_route.methods if e_meth in unique_methods]
+                    
+                except AttributeError:
+                    # Websocket routes do not have 'methods', so do nothing
+                    each_unique_methods_list = []
+                
+                # Figure out what to print for unique methods (if anything!)
                 has_unique_methods = (len(each_unique_methods_list) > 0)
                 unique_methods_str = ", ".join(each_unique_methods_list)
                 unique_methods_html = "<b><em>{}</em></b>&nbsp;&nbsp;".format(unique_methods_str)

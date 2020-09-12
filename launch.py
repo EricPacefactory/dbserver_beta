@@ -28,6 +28,7 @@ from local.routes.objects import build_object_routes
 from local.routes.favorites import build_favorite_routes
 from local.routes.stations import build_station_routes
 from local.routes.snapshots import build_snapshot_routes
+from local.routes.websockets import build_websocket_routes
 from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
 from local.lib.quitters import ide_catcher
 
@@ -56,6 +57,7 @@ def build_all_routes():
     all_routes_dict["Objects"] = build_object_routes()
     all_routes_dict["Favorites"] = build_favorite_routes()
     all_routes_dict["Stations"] = build_station_routes()
+    all_routes_dict["Websockets"] = build_websocket_routes()
     all_routes_dict["POSTing"] = build_posting_routes()
     all_routes_dict["Deleting"] = build_deleting_routes()
     all_routes_dict["Server Logs"] = build_logging_routes()
@@ -122,7 +124,7 @@ asgi_app = Starlette(debug = enable_debug_mode,
 #%% Launch (manually)
 
 # This section of code only runs if using 'python3 launch.py'
-# Better to use: 'uvicorn launch:asgi_app --host "0.0.0.0" --port 8050'
+# Better to use: 'uvicorn launch:asgi_app --host "0.0.0.0" --port 8050 --log-level "warning"'
 if __name__ == "__main__":
     
     # Only import this if we need to use it...

@@ -49,6 +49,8 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+import tarfile
+import io
 import base64
 
 from local.lib.mongo_helpers import connect_to_mongo
@@ -62,7 +64,7 @@ from local.lib.response_helpers import no_data_response, bad_request_response
 from local.lib.query_helpers import first_of_query
 from local.lib.image_pathing import build_base_image_pathing, build_snapshot_image_pathing
 
-from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse
+from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse, StreamingResponse
 from starlette.routing import Route
 
 from pymongo import ASCENDING, DESCENDING
@@ -131,6 +133,40 @@ def snap_get_one_b64_jpg(request):
         b64_image = base64.b64encode(image_data.read())
     
     return PlainTextResponse(b64_image)
+
+# .....................................................................................................................
+
+def snap_get_many_images_as_tar_by_time_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Get data from db
+    collection_ref = get_snapshot_collection(camera_select)
+    epoch_ms_list = get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
+    
+    # Create in-memory storage for tarfile data
+    tar_in_memory = io.BytesIO()
+    with tarfile.open(fileobj = tar_in_memory, mode = "w") as out_file:
+    
+        # Try to bundle all snapshots into a single tar file
+        for each_snap_ems in epoch_ms_list:
+            image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
+            if not os.path.exists(image_load_path):
+                error_message = "No image for epoch: {}".format(each_snap_ems)
+                return bad_request_response(error_message)
+            save_name = os.path.basename(image_load_path)
+            out_file.add(image_load_path, arcname = save_name, recursive = False)
+    
+    # Reset to beginning of 'file' in memory before we try to stream it
+    tar_in_memory.seek(0)
+    
+    return StreamingResponse(tar_in_memory, media_type = "application/x-tar")
 
 # .....................................................................................................................
 # .....................................................................................................................
@@ -469,6 +505,9 @@ def build_snapshot_routes():
      
      Route(url("get-one-image", "by-ems", "{epoch_ms:int}"),
                snap_get_one_image),
+     
+     Route(url("get-many-images-tar", "by-time-range", "{start_time}", "{end_time}"),
+               snap_get_many_images_as_tar_by_time_range),
      
      Route(url("get-one-b64-jpg", "by-ems", "{epoch_ms:int}"),
                snap_get_one_b64_jpg),
