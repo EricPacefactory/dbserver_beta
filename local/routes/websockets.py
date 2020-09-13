@@ -176,23 +176,20 @@ async def stations_ws_get_many_metadata_by_time_range(websocket):
 
 def build_websocket_routes():
     
-    # Set up websocket URL tag
-    websocket_url_prefix = "ws"
-    
     # Bundle all websocket routes
-    url = lambda *url_components: "/".join(["/{camera_select:str}", websocket_url_prefix, *url_components])
+    url = lambda *url_components: "/".join(["/{camera_select:str}", *url_components])
     obj_url = lambda *url_components: url(OBJ_COLLECTION_NAME, *url_components)
     snap_url = lambda *url_components: url(SNAP_COLLECTION_NAME, *url_components)
     station_url = lambda *url_components: url(STATIONS_COLLECTION_NAME, *url_components)
     websocket_routes = \
     [
-     WebSocketRoute(obj_url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
+     WebSocketRoute(obj_url("stream-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
                     objects_ws_get_many_metadata_by_time_range),
      
-     WebSocketRoute(snap_url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
+     WebSocketRoute(snap_url("stream-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
                     snapshots_ws_get_many_metadata_by_time_range),
      
-     WebSocketRoute(station_url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
+     WebSocketRoute(station_url("stream-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
                     stations_ws_get_many_metadata_by_time_range)
     ]
     
