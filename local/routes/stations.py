@@ -61,7 +61,7 @@ from local.lib.response_helpers import bad_request_response, no_data_response
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
 
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -80,27 +80,29 @@ def get_time_range_query_filter(start_ems, end_ems):
 
 # .....................................................................................................................
 
-def find_by_target_time(collection_ref, target_ems, *, return_ids_only):
+def find_by_target_time(collection_ref, target_ems, *, return_ids_only, ascending_order = True):
     
     # Build query
     filter_dict = get_target_time_query_filter(target_ems)
     projection_dict = {} if return_ids_only else None
     
     # Request data from the db
-    query_result = collection_ref.find(filter_dict, projection_dict).sort(STN_ID_FIELD, ASCENDING)
+    sort_order = ASCENDING if ascending_order else DESCENDING
+    query_result = collection_ref.find(filter_dict, projection_dict).sort(STN_ID_FIELD, sort_order)
     
     return query_result
 
 # .....................................................................................................................
 
-def find_by_time_range(collection_ref, start_ems, end_ems, *, return_ids_only):
+def find_by_time_range(collection_ref, start_ems, end_ems, *, return_ids_only, ascending_order = True):
     
     # Build query
     filter_dict = get_time_range_query_filter(start_ems, end_ems)
     projection_dict = {} if return_ids_only else None
     
     # Request data from the db
-    query_result = collection_ref.find(filter_dict, projection_dict).sort(STN_ID_FIELD, ASCENDING)
+    sort_order = ASCENDING if ascending_order else DESCENDING
+    query_result = collection_ref.find(filter_dict, projection_dict).sort(STN_ID_FIELD, sort_order)
     
     return query_result
 

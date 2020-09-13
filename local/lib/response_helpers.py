@@ -49,6 +49,7 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
+import gzip
 import ujson
 
 from starlette.responses import UJSONResponse 
@@ -129,6 +130,27 @@ def parse_ujson_response(ujson_response_object):
     response_dict = ujson.loads(response_json_data)
     
     return response_dict
+
+# .....................................................................................................................
+
+def encode_json_data(metadata_dict, json_double_precision):
+    
+    # Encode json data for saving
+    encd_json_data = ujson.dumps(metadata_dict, sort_keys = False, double_precision = json_double_precision)
+    
+    return encd_json_data
+
+# .....................................................................................................................
+
+def encode_jsongz_data(metadata_dict, json_double_precision):
+    
+    ''' Function which takes a metadata dictionary and encodes it as gzipped json data (i.e. a .json.gz file) '''
+    
+    # Encode gzipped json data for saving
+    encd_json_data = encode_json_data(metadata_dict, json_double_precision)
+    encd_jsongz_data = gzip.compress(bytes(encd_json_data, "ascii"))
+    
+    return encd_jsongz_data
 
 # .....................................................................................................................
 # .....................................................................................................................

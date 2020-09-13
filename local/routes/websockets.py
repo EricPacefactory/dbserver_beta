@@ -52,6 +52,11 @@ find_path_to_local()
 from local.lib.mongo_helpers import connect_to_mongo
 
 from local.lib.query_helpers import start_end_times_to_epoch_ms, get_many_metadata_in_time_range
+from local.lib.query_helpers import get_epoch_ms_list_in_time_range
+
+from local.lib.response_helpers import encode_jsongz_data
+
+from local.lib.image_pathing import build_base_image_pathing, build_snapshot_image_pathing
 
 from local.routes.snapshots import COLLECTION_NAME as SNAP_COLLECTION_NAME
 from local.routes.snapshots import EPOCH_MS_FIELD as SNAP_EPOCH_MS_FIELD
@@ -65,7 +70,8 @@ from local.routes.stations import COLLECTION_NAME as STATIONS_COLLECTION_NAME
 from local.routes.stations import find_by_time_range as find_stns_by_time_range
 from local.routes.stations import get_station_collection
 
-from starlette.routing import WebSocketRoute
+from starlette.responses import UJSONResponse
+from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 
 
@@ -74,34 +80,16 @@ from starlette.websockets import WebSocketDisconnect
 
 # .....................................................................................................................
 
-async def objects_ws_get_many_metadata_by_time_range(websocket):
+def websocket_route_info(request):
     
-    # Get initial websocket connection & camera select info
-    camera_select = websocket.path_params["camera_select"]
-    start_time = websocket.path_params["start_time"]
-    end_time = websocket.path_params["end_time"]
+    ''' Helper route, used to document websocket route behaviour '''
     
-    # Convert start/end times to ems values
-    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    # Build a message meant to help document this set of routes
+    msg_list = ["Not finished!"]
     
-    # Request data from the db
-    collection_ref = get_object_collection(camera_select)
-    query_result = find_objs_by_time_range(collection_ref, start_ems, end_ems, return_ids_only = False)
+    info_dict = {"info": msg_list}
     
-    # Handle websocket connection
-    await websocket.accept()
-    try:
-        for each_obj_md in query_result:
-            await websocket.send_json(each_obj_md) # .send_json(..., mode = "binary") ???
-        #print("DEBUG: DISCONNECT")
-    except WebSocketDisconnect:
-        pass
-    
-    #print("DEBUG: CLOSING?")
-    await websocket.close()
-    #print("DEBUG: CLOSED")
-    
-    return
+    return UJSONResponse(info_dict)
 
 # .....................................................................................................................
 
@@ -117,11 +105,12 @@ async def snapshots_ws_get_many_metadata_by_time_range(websocket):
     
     # Request data from the db
     collection_ref = get_snapshot_collection(camera_select)
-    query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, SNAP_EPOCH_MS_FIELD)
+    query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, SNAP_EPOCH_MS_FIELD,
+                                                   ascending_order = False)
     
     # Handle websocket connection
     await websocket.accept()
-    try:        
+    try:
         for each_snap_md in query_result:
             await websocket.send_json(each_snap_md)
         #print("DEBUG: DISCONNECT")
@@ -136,7 +125,89 @@ async def snapshots_ws_get_many_metadata_by_time_range(websocket):
 
 # .....................................................................................................................
 
-async def stations_ws_get_many_metadata_by_time_range(websocket):
+async def snapshots_ws_get_many_images_by_time_range(websocket):
+    
+    # Get information from route url
+    camera_select = websocket.path_params["camera_select"]
+    start_time = websocket.path_params["start_time"]
+    end_time = websocket.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Request data from the db
+    collection_ref = get_snapshot_collection(camera_select)
+    epoch_ms_list = get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, SNAP_EPOCH_MS_FIELD,
+                                                    ascending_order = False)
+    
+    # Handle websocket connection
+    await websocket.accept()
+    try:
+        
+        # First send the ems list data as a reference for which snapshot images are being sent
+        await websocket.send_json(epoch_ms_list)
+        
+        # Next send every image
+        for each_snap_ems in epoch_ms_list:
+            
+            # Build pathing to snapshot image file
+            image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
+            if not os.path.exists(image_load_path):
+                await websocket.send_bytes(0)
+            
+            # Load and send snapshot image data
+            with open(image_load_path, "rb") as in_file:
+                image_bytes = in_file.read()            
+            await websocket.send_bytes(image_bytes)
+        #print("DEBUG: DISCONNECT")
+        
+    except WebSocketDisconnect:
+        pass
+    
+    #print("DEBUG: CLOSING?")
+    await websocket.close()
+    #print("DEBUG: CLOSED")
+    
+    return
+
+# .....................................................................................................................
+
+async def objects_ws_get_many_metadata_gz_by_time_range(websocket):
+    
+    # Get initial websocket connection & camera select info
+    camera_select = websocket.path_params["camera_select"]
+    start_time = websocket.path_params["start_time"]
+    end_time = websocket.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Request data from the db
+    collection_ref = get_object_collection(camera_select)
+    query_result = find_objs_by_time_range(collection_ref, start_ems, end_ems,
+                                           return_ids_only = False, ascending_order = False)
+    
+    # Handle websocket connection
+    await websocket.accept()
+    try:
+        for each_obj_md in query_result:
+            encoded_obj_md = encode_jsongz_data(each_obj_md, 3)
+            await websocket.send_bytes(encoded_obj_md)
+            #await websocket.send_json(each_obj_md) # .send_json(..., mode = "binary") ???
+        #print("DEBUG: DISCONNECT")
+        
+    except WebSocketDisconnect:
+        pass
+    
+    #print("DEBUG: CLOSING?")
+    await websocket.close()
+    #print("DEBUG: CLOSED")
+    
+    return
+
+# .....................................................................................................................
+
+async def stations_ws_get_many_metadata_gz_by_time_range(websocket):
     
     # Get information from route url
     camera_select = websocket.path_params["camera_select"]
@@ -148,14 +219,17 @@ async def stations_ws_get_many_metadata_by_time_range(websocket):
     
     # Request data from the db
     collection_ref = get_station_collection(camera_select)
-    query_result = find_stns_by_time_range(collection_ref, start_ems, end_ems, return_ids_only = False)
+    query_result = find_stns_by_time_range(collection_ref, start_ems, end_ems,
+                                           return_ids_only = False, ascending_order = False)
     
     # Handle websocket connection
     await websocket.accept()
     try:        
         for each_station_md in query_result:
-            await websocket.send_json(each_station_md)
+            encoded_stn_md = encode_jsongz_data(each_station_md, 3)
+            await websocket.send_bytes(encoded_stn_md)
         #print("DEBUG: DISCONNECT")
+        
     except WebSocketDisconnect:
         pass
     
@@ -183,14 +257,19 @@ def build_websocket_routes():
     station_url = lambda *url_components: url(STATIONS_COLLECTION_NAME, *url_components)
     websocket_routes = \
     [
-     WebSocketRoute(obj_url("stream-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
-                    objects_ws_get_many_metadata_by_time_range),
+     Route("/websockets/info", websocket_route_info),
      
      WebSocketRoute(snap_url("stream-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
                     snapshots_ws_get_many_metadata_by_time_range),
      
-     WebSocketRoute(station_url("stream-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
-                    stations_ws_get_many_metadata_by_time_range)
+     WebSocketRoute(snap_url("stream-many-images", "by-time-range", "{start_time}", "{end_time}"),
+                    snapshots_ws_get_many_images_by_time_range),
+     
+     WebSocketRoute(obj_url("stream-many-metadata-gz", "by-time-range", "{start_time}", "{end_time}"),
+                    objects_ws_get_many_metadata_gz_by_time_range),
+     
+     WebSocketRoute(station_url("stream-many-metadata-gz", "by-time-range", "{start_time}", "{end_time}"),
+                    stations_ws_get_many_metadata_gz_by_time_range)
     ]
     
     return websocket_routes
@@ -201,6 +280,9 @@ def build_websocket_routes():
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
+
+# Establish (global!) variable used to access the persistent image folder
+IMAGE_FOLDER = build_base_image_pathing()
 
 # Connection to mongoDB
 MCLIENT = connect_to_mongo()

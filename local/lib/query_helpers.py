@@ -53,6 +53,7 @@ from local.lib.timekeeper_utils import any_time_type_to_epoch_ms
 
 from pymongo import ASCENDING, DESCENDING
 
+
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Helper functions
 
@@ -95,14 +96,15 @@ def start_end_times_to_epoch_ms(start_time, end_time):
 
 # .....................................................................................................................
     
-def get_all_ids(collection_ref, sort_field = "_id"):
+def get_all_ids(collection_ref, sort_field = "_id", ascending_order = True):
     
     # Build query
     query_dict = None
     projection_dict = {}
     
     # Request data from the db
-    query_result = collection_ref.find(query_dict, projection_dict).sort(sort_field, ASCENDING)
+    sort_order = ASCENDING if ascending_order else DESCENDING
+    query_result = collection_ref.find(query_dict, projection_dict).sort(sort_field, sort_order)
     
     return query_result
 
@@ -183,40 +185,46 @@ def get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_
 
 # .....................................................................................................................
 
-def get_many_metadata_since_target_ems(collection_ref, target_ems, epoch_ms_field = "_id"):
+def get_many_metadata_since_target_ems(collection_ref, target_ems, epoch_ms_field = "_id",
+                                       ascending_order = True):
     
     # Build query
     query_dict = {epoch_ms_field: {"$gte": target_ems}}
     projection_dict = None
     
     # Request data from the db
-    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, ASCENDING)
+    sort_order = ASCENDING if ascending_order else DESCENDING
+    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, sort_order)
     
     return query_result
 
 # .....................................................................................................................
 
-def get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id"):
+def get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id",
+                                    ascending_order = True):
     
     # Build query
     query_dict = {epoch_ms_field: {"$gte": start_ems, "$lt": end_ems}}
     projection_dict = None
     
     # Request data from the db
-    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, ASCENDING)
+    sort_order = ASCENDING if ascending_order else DESCENDING
+    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, sort_order)
     
     return query_result
 
 # .....................................................................................................................
 
-def get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id"):
+def get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id",
+                                    ascending_order = True):
     
     # Build query
     query_dict = {epoch_ms_field: {"$gte": start_ems, "$lt": end_ems}}
     projection_dict = {}
     
     # Request data from the db
-    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, ASCENDING)
+    sort_order = ASCENDING if ascending_order else DESCENDING
+    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, sort_order)
     
     # Pull out the epoch values into a list, instead of returning a list of dictionaries
     epoch_ms_list = [each_entry[epoch_ms_field] for each_entry in query_result]    
