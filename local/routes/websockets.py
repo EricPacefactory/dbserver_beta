@@ -183,7 +183,7 @@ async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(w
     
     # Only sub-sample if the number of requested samples is less than the actual number of samples
     # -> Also, treat n_samples = 0 as a special case, indicating no-subsampling
-    need_to_subsample = (0 < num_samples_total < num_samples_total)
+    need_to_subsample = (0 < n_samples < num_samples_total)
     if need_to_subsample:
         step_factor = (num_samples_total - 1) / (n_samples - 1)
         idx_list = [int(round(k * step_factor)) for k in range(n_samples)]
