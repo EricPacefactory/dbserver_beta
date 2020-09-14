@@ -94,9 +94,8 @@ def websocket_route_info(request):
     # Build a message meant to help document this set of routes
     msg_list = ["Experimental/not finished!",
                 "Each route will first send a list of ids/times representing the data being streamed",
-                "The object/station metadata routes stream gzipped-json data as bytes",
-                "The snapshot metadata route streams json strings",
-                "The image route streams jpgs as bytes"]
+                "The background/snapshot routes stream: metadata-jpg-metadata-jpg-... etc all in binary",
+                "The object/station metadata routes stream gzipped-json data in binary"]
     
     info_dict = {"info": msg_list}
     
@@ -137,7 +136,7 @@ async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(websocket
         for each_bg_md, each_snap_ems in zip(bg_md_list, epoch_ms_list):
             
             # First send metadata
-            await websocket.send_json(each_bg_md)
+            await websocket.send_json(each_bg_md, mode = "binary")
             
             # Build pathing to background image file
             image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
@@ -203,7 +202,7 @@ async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(w
         for each_snap_md, each_snap_ems in zip(snap_md_list, epoch_ms_list):
             
             # First send metadata
-            await websocket.send_json(each_snap_md)
+            await websocket.send_json(each_snap_md, mode = "binary")
             
             # Build pathing to snapshot image file
             image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
