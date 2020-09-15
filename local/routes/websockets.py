@@ -130,7 +130,8 @@ async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(websocket
     await websocket.accept()
     try:
         # First send the ems list data as a reference for which background metadata are being sent
-        await websocket.send_json(epoch_ms_list)
+        encoded_ems_list = encode_jsongz_data(epoch_ms_list, 0)
+        await websocket.send_bytes(encoded_ems_list)
         
         # Next send both metadata & image data (sequentially)
         for each_bg_md, each_snap_ems in zip(bg_md_list, epoch_ms_list):
@@ -196,7 +197,8 @@ async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(w
     await websocket.accept()
     try:
         # First send the ems list data as a reference for which snapshot metadata are being sent, then send each entry
-        await websocket.send_json(epoch_ms_list)
+        encoded_ems_list = encode_jsongz_data(epoch_ms_list, 0)
+        await websocket.send_bytes(encoded_ems_list)
         
         # Next send both metadata & image data (sequentially)
         for each_snap_md, each_snap_ems in zip(snap_md_list, epoch_ms_list):
@@ -252,7 +254,8 @@ async def objects_ws_stream_many_metadata_gz_by_time_range(websocket):
     try:
         
         # First send the list of ids as a reference for which object data is are being sent, then send each entry
-        await websocket.send_json(obj_ids_list)
+        encoded_ids_list = encode_jsongz_data(obj_ids_list, 0)
+        await websocket.send_bytes(encoded_ids_list)
         for each_obj_md in query_result:
             encoded_obj_md = encode_jsongz_data(each_obj_md, 3)
             await websocket.send_bytes(encoded_obj_md)
@@ -298,7 +301,8 @@ async def stations_ws_stream_many_metadata_gz_by_time_range(websocket):
     await websocket.accept()
     try:
         # First send the list of ids as a reference for which station data is are being sent
-        await websocket.send_json(stn_ids_list)
+        encoded_ids_list = encode_jsongz_data(stn_ids_list, 0)
+        await websocket.send_bytes(encoded_ids_list)
         
         # Next send every individual metadata entry (with gzip encoding)
         for each_station_md in query_result:
