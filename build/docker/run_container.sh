@@ -70,6 +70,7 @@ docker run -d \
            --network=$network_setting \
            -v $host_volume_path:$container_volume_path \
            --name $container_name \
+           --restart $container_restart \
            $image_name \
            > /dev/null
 echo "  --> Success!"
