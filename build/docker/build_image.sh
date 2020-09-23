@@ -29,7 +29,7 @@ dockerfile_path="$docker_folder_path/Dockerfile"
 echo ""
 read -p "Run git pull before build? (y/[n]) " user_response
 case "$user_response" in
-  y|Y ) pushd $root_project_folder_path; git pull; popd;;
+  y|Y ) pushd $root_project_folder_path > /dev/null; git pull; popd > /dev/null;;
   * ) ;;
 esac
 
