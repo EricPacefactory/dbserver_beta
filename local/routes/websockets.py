@@ -52,7 +52,7 @@ find_path_to_local()
 from local.lib.mongo_helpers import connect_to_mongo
 
 from local.lib.query_helpers import start_end_times_to_epoch_ms, get_many_metadata_in_time_range
-from local.lib.query_helpers import get_closest_metadata_before_target_ems
+from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_one_metadata
 
 from local.lib.response_helpers import encode_jsongz_data
 
@@ -107,12 +107,12 @@ def websocket_route_info(request):
 def ws_backgrounds_stream_many_DUMMY(): # Included since spyder IDE hides async functions in outline view!
     raise NotImplementedError("Not a real route!")
 
-async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(websocket):
+async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(ws_request):
     
     # Get information from route url
-    camera_select = websocket.path_params["camera_select"]
-    start_time = websocket.path_params["start_time"]
-    end_time = websocket.path_params["end_time"]
+    camera_select = ws_request.path_params["camera_select"]
+    start_time = ws_request.path_params["start_time"]
+    end_time = ws_request.path_params["end_time"]
     
     # Convert start/end times to ems values
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
@@ -128,33 +128,36 @@ async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(websocket
     epoch_ms_list = [each_md[BG_EPOCH_MS_FIELD] for each_md in bg_md_list]
     
     # Handle websocket connection
-    await websocket.accept()
+    await ws_request.accept()
     try:
         # First send the ems list data as a reference for which background metadata are being sent
         encoded_ems_list = encode_jsongz_data(epoch_ms_list, 0)
-        await websocket.send_bytes(encoded_ems_list)
+        await ws_request.send_bytes(encoded_ems_list)
         
         # Next send both metadata & image data (sequentially)
         for each_bg_md, each_snap_ems in zip(bg_md_list, epoch_ms_list):
             
             # First send metadata
-            await websocket.send_json(each_bg_md, mode = "binary")
+            await ws_request.send_json(each_bg_md, mode = "binary")
             
             # Build pathing to background image file
             image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
             if not os.path.exists(image_load_path):
-                await websocket.send_bytes(b'')
+                await ws_request.send_bytes(b'')
             
             # Load and send background image data
             with open(image_load_path, "rb") as in_file:
                 image_bytes = in_file.read()
-            await websocket.send_bytes(image_bytes)
+            await ws_request.send_bytes(image_bytes)
         
     except WebSocketDisconnect:
         pass
     
+    except Exception:
+        pass
+    
     # Make sure we shut-down the connection when we're done
-    await websocket.close()
+    await ws_request.close()
     
     return
 
@@ -163,13 +166,13 @@ async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(websocket
 def ws_snapshots_stream_many_DUMMY(): # Included since spyder IDE hides async functions in outline view!
     raise NotImplementedError("Not a real route!")
 
-async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(websocket):
+async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(ws_request):
     
     # Get information from route url
-    camera_select = websocket.path_params["camera_select"]
-    start_time = websocket.path_params["start_time"]
-    end_time = websocket.path_params["end_time"]
-    n_samples = websocket.path_params["n"]
+    camera_select = ws_request.path_params["camera_select"]
+    start_time = ws_request.path_params["start_time"]
+    end_time = ws_request.path_params["end_time"]
+    n_samples = ws_request.path_params["n"]
     
     # Convert start/end times to ems values
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
@@ -195,33 +198,36 @@ async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(w
     epoch_ms_list = [each_snap_md[SNAP_EPOCH_MS_FIELD] for each_snap_md in snap_md_list]
     
     # Handle websocket connection
-    await websocket.accept()
+    await ws_request.accept()
     try:
         # First send the ems list data as a reference for which snapshot metadata are being sent, then send each entry
         encoded_ems_list = encode_jsongz_data(epoch_ms_list, 0)
-        await websocket.send_bytes(encoded_ems_list)
+        await ws_request.send_bytes(encoded_ems_list)
         
         # Next send both metadata & image data (sequentially)
         for each_snap_md, each_snap_ems in zip(snap_md_list, epoch_ms_list):
             
             # First send metadata
-            await websocket.send_json(each_snap_md, mode = "binary")
+            await ws_request.send_json(each_snap_md, mode = "binary")
             
             # Build pathing to snapshot image file
             image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
             if not os.path.exists(image_load_path):
-                await websocket.send_bytes(b'')
+                await ws_request.send_bytes(b'')
             
             # Load and send snapshot image data
             with open(image_load_path, "rb") as in_file:
                 image_bytes = in_file.read()
-            await websocket.send_bytes(image_bytes)
+            await ws_request.send_bytes(image_bytes)
         
     except WebSocketDisconnect:
         pass
     
+    except Exception:
+        pass
+    
     # Make sure we shut-down the connection when we're done
-    await websocket.close()
+    await ws_request.close()
     
     return
 
@@ -230,12 +236,12 @@ async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(w
 def ws_objects_stream_many_DUMMY(): # Included since spyder IDE hides async functions in outline view!
     raise NotImplementedError("Not a real route!")
 
-async def objects_ws_stream_many_metadata_gz_by_time_range(websocket):
+async def objects_ws_stream_many_metadata_gz_by_time_range(ws_request):
     
     # Get initial websocket connection & camera select info
-    camera_select = websocket.path_params["camera_select"]
-    start_time = websocket.path_params["start_time"]
-    end_time = websocket.path_params["end_time"]
+    camera_select = ws_request.path_params["camera_select"]
+    start_time = ws_request.path_params["start_time"]
+    end_time = ws_request.path_params["end_time"]
     
     # Convert start/end times to ems values
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
@@ -246,29 +252,29 @@ async def objects_ws_stream_many_metadata_gz_by_time_range(websocket):
                                            return_ids_only = True, ascending_order = False)
     obj_ids_list = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
     
-    # Next request all object metadata so we can loop/stream through each entry to send to client
-    query_result = find_objs_by_time_range(collection_ref, start_ems, end_ems,
-                                           return_ids_only = False, ascending_order = False)
-    
     # Handle websocket connection
-    await websocket.accept()
+    await ws_request.accept()
     try:
         
         # First send the list of ids as a reference for which object data is are being sent, then send each entry
         encoded_ids_list = encode_jsongz_data(obj_ids_list, 0)
-        await websocket.send_bytes(encoded_ids_list)
-        for each_obj_md in query_result:
+        await ws_request.send_bytes(encoded_ids_list)
+        for each_obj_id in obj_ids_list:
+            each_obj_md = get_one_metadata(collection_ref, OBJ_ID_FIELD, each_obj_id)
             encoded_obj_md = encode_jsongz_data(each_obj_md, 3)
-            await websocket.send_bytes(encoded_obj_md)
+            await ws_request.send_bytes(encoded_obj_md)
         #print("DEBUG: DISCONNECT")
         
     except WebSocketDisconnect:
         pass
     
+    except Exception:
+        pass
+    
     #print("DEBUG: CLOSING?")
     
     # Make sure we shut-down the connection when we're done
-    await websocket.close()
+    await ws_request.close()
     #print("DEBUG: CLOSED")
     
     return
@@ -278,12 +284,12 @@ async def objects_ws_stream_many_metadata_gz_by_time_range(websocket):
 def ws_stations_stream_many_DUMMY(): # Included since spyder IDE hides async functions in outline view!
     raise NotImplementedError("Not a real route!")
 
-async def stations_ws_stream_many_metadata_gz_by_time_range(websocket):
+async def stations_ws_stream_many_metadata_gz_by_time_range(ws_request):
     
     # Get information from route url
-    camera_select = websocket.path_params["camera_select"]
-    start_time = websocket.path_params["start_time"]
-    end_time = websocket.path_params["end_time"]
+    camera_select = ws_request.path_params["camera_select"]
+    start_time = ws_request.path_params["start_time"]
+    end_time = ws_request.path_params["end_time"]
     
     # Convert start/end times to ems values
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
@@ -294,29 +300,30 @@ async def stations_ws_stream_many_metadata_gz_by_time_range(websocket):
                                            return_ids_only = True, ascending_order = False)
     stn_ids_list = [each_entry[STN_ID_FIELD] for each_entry in query_result]
     
-    # Next request all station metadata so we can loop/stream through each entry to send to client
-    query_result = find_stns_by_time_range(collection_ref, start_ems, end_ems,
-                                           return_ids_only = False, ascending_order = False)
-    
     # Handle websocket connection
-    await websocket.accept()
+    await ws_request.accept()
     try:
+        
         # First send the list of ids as a reference for which station data is are being sent
         encoded_ids_list = encode_jsongz_data(stn_ids_list, 0)
-        await websocket.send_bytes(encoded_ids_list)
+        await ws_request.send_bytes(encoded_ids_list)
         
         # Next send every individual metadata entry (with gzip encoding)
-        for each_station_md in query_result:
-            encoded_stn_md = encode_jsongz_data(each_station_md, 3)
-            await websocket.send_bytes(encoded_stn_md)
+        for each_stn_id in stn_ids_list:
+            each_stn_md = get_one_metadata(collection_ref, STN_ID_FIELD, each_stn_id)
+            encoded_stn_md = encode_jsongz_data(each_stn_md, 3)
+            await ws_request.send_bytes(encoded_stn_md)
         #print("DEBUG: DISCONNECT")
         
     except WebSocketDisconnect:
         pass
     
+    except Exception:
+        pass
+    
     #print("DEBUG: CLOSING?")
     # Make sure we shut-down the connection when we're done
-    await websocket.close()
+    await ws_request.close()
     #print("DEBUG: CLOSED")
     
     return
