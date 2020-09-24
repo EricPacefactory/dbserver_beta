@@ -104,7 +104,7 @@ def uistore_info(request):
     # Build a message meant to help document this set of routes
     msg_list = ["The 'uistore' storage is intended for holding data generated from the web UI",
                 "- Data is grouped by 'store types', this can be used to separate different categories of data",
-                "- Individual entries are stored using IDs. These must be non-negative integers",
+                "- Individual entries are stored using string IDs",
                 "- Range based routes assume an end-time key ({}) is present".format(FINAL_EPOCH_MS_FIELD),
                 "- Nothing else is assumed about the content of uistore data",
                 "- Entries do not need to be consistently formatted",

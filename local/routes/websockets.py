@@ -94,7 +94,7 @@ def websocket_route_info(request):
     # Build a message meant to help document this set of routes
     msg_list = ["Experimental/not finished!",
                 "All data transfers use binary data!",
-                "Each route will first send a json-gzipped list of ids/times representing the data being streamed",
+                "Each route will first send a gzipped-json list of ids/times representing the data being streamed",
                 "The background/snapshot routes stream: metadata-jpg-metadata-jpg-... etc",
                 "The object/station metadata routes stream gzipped-json data"]
     
