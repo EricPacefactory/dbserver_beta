@@ -56,6 +56,7 @@ import pymongo
 from local.lib.environment import get_mongo_protocol, get_mongo_host, get_mongo_port
 from local.lib.quitters import ide_quit
 
+
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define classes
 
@@ -63,6 +64,7 @@ from local.lib.quitters import ide_quit
 
 # .....................................................................................................................
 # .....................................................................................................................
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Define functions
@@ -95,9 +97,14 @@ def check_mongo_connection(mongo_client):
 
 # .....................................................................................................................
 
-def connect_to_mongo(connection_timeout_ms = 4000, max_connection_attempts = 15):
+def connect_to_mongo(connection_timeout_ms = 2500, max_connection_attempts = 10):
     
     ''' Helper function used to establish a conection to mongoDB '''
+    
+    # For clarity
+    connect_immediately = True
+    log_name = "dbserver"
+    max_idle_time_ms = (60 * 60 * 1000)
     
     # Get configuration data
     mongo_protocol = get_mongo_protocol()
@@ -108,7 +115,12 @@ def connect_to_mongo(connection_timeout_ms = 4000, max_connection_attempts = 15)
     mongo_url = "{}://{}:{}/".format(mongo_protocol, mongo_host, mongo_port)
     
     # Get database object for manipulation
-    mongo_client = pymongo.MongoClient(mongo_url, tz_aware = False, serverSelectionTimeoutMS = connection_timeout_ms)
+    mongo_client = pymongo.MongoClient(mongo_url,
+                                       tz_aware = False,
+                                       serverSelectionTimeoutMS = connection_timeout_ms,
+                                       connect = connect_immediately,
+                                       appname = log_name,
+                                       maxIdleTimeMS = max_idle_time_ms)
     
     # Repeatedly try to connect to MongoDB
     try:
@@ -123,7 +135,7 @@ def connect_to_mongo(connection_timeout_ms = 4000, max_connection_attempts = 15)
                   "ERROR:",
                   "Server couldn't connect to database",
                   "@ {}".format(mongo_url),
-                  "  --> Trying again ({})".format(1 + k), sep = "\n")
+                  "  --> Trying again (attempt {})".format(1 + k), sep = "\n")
             sleep(3)
         
         # Print additional warning indicator if we fail to connect after repeated attempts
@@ -131,8 +143,9 @@ def connect_to_mongo(connection_timeout_ms = 4000, max_connection_attempts = 15)
             print("",
                   "Connection attempts to database failed!",
                   "Server will start up anyways, but requests may not work...", sep = "\n")
-            
+        
     except KeyboardInterrupt:
+        mongo_client.close()
         ide_quit("Connection error. Quitting...")
     
     return mongo_client
@@ -284,6 +297,15 @@ def remove_camera_entry(mongo_client, camera_select):
 
 # .....................................................................................................................
 # .....................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Setup initial (shared) connection
+
+# Import from other scripts (e.g. routes) to access mongo!
+MCLIENT = connect_to_mongo()
+#print("DEBUG: MongoClient created!")
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Demo

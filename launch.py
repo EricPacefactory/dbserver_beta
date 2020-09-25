@@ -15,6 +15,8 @@ import signal
 
 from collections import OrderedDict
 
+from local.lib.mongo_helpers import MCLIENT
+
 from local.routes.posting import build_posting_routes
 from local.routes.deleting import build_deleting_routes
 from local.routes.logging import build_logging_routes
@@ -29,7 +31,9 @@ from local.routes.favorites import build_favorite_routes
 from local.routes.stations import build_station_routes
 from local.routes.snapshots import build_snapshot_routes
 from local.routes.websockets import build_websocket_routes
+
 from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
+from local.lib.response_helpers import get_exception_handlers
 from local.lib.quitters import ide_catcher
 
 from starlette.applications import Starlette
@@ -98,6 +102,21 @@ def asgi_startup():
     # Speed up shutdown when calling 'docker stop ...'
     register_shutdown_command()
     
+    # Some feedback, mostly for docker logs
+    print("", "Started dbserver!", sep = "\n", flush = True)
+    
+    return
+
+# .....................................................................................................................
+
+def asgi_shutdown():
+    
+    # Some feedback, mostly for docker logs
+    print("", "Stopping dbserver!", sep = "\n", flush = True)
+    
+    # Close the (global!) mongo connection
+    MCLIENT.close()
+    
     return
 
 # .....................................................................................................................
@@ -111,13 +130,18 @@ def asgi_startup():
 middleware = [Middleware(CORSMiddleware, allow_origins = ["*"], allow_methods = ["*"], allow_headers = ["*"]),
               Middleware(GZipMiddleware, minimum_size = 1500)]
 
+# Set up mongo-disconnect error handling
+exception_handlers = get_exception_handlers()
+
 # Initialize the asgi application
 enable_debug_mode = get_debugmode()
 all_routes_list = build_all_routes()
 asgi_app = Starlette(debug = enable_debug_mode, 
                      routes = all_routes_list,
                      middleware = middleware, 
-                     on_startup = [asgi_startup])
+                     on_startup = [asgi_startup],
+                     on_shutdown = [asgi_shutdown],
+                     exception_handlers = exception_handlers)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -145,12 +169,15 @@ if __name__ == "__main__":
     
     # Unleash the server!
     uvicorn.run(import_command, host = dbserver_host, port = dbserver_port)
+    
+    # Shutdown the connection when running as main
+    MCLIENT.close()
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Scrap
 
 # TODO
-# - add mongo client connection cycling (script shouldn't just end if a connection isn't made!!)
-# - consider using websockets? Esp. for posting/retrieving image data
+# - consider using websockets? Esp. for posting image data
+#   -> May instead want to post data in larger packs? e.g. save/upload as tar files???
 

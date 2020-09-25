@@ -49,7 +49,7 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo, get_collection_names_list
+from local.lib.mongo_helpers import MCLIENT, post_one_to_mongo, get_collection_names_list
 
 from local.lib.timekeeper_utils import get_utc_datetime, datetime_to_epoch_ms
 
@@ -238,8 +238,7 @@ def build_logging_routes():
 # Hard-code (global!) variable used to indicate timing field
 EPOCH_MS_FIELD = "_id"
 
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
+# Set name of collection, which determines url routing + storage on mongoDB
 COLLECTION_NAME = "serverlogs"
 
 # Set shared log prefix indicator

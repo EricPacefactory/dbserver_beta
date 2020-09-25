@@ -49,8 +49,6 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from local.lib.mongo_helpers import connect_to_mongo
-
 from local.lib.query_helpers import start_end_times_to_epoch_ms, get_many_metadata_in_time_range
 from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_one_metadata
 
@@ -153,8 +151,9 @@ async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(ws_reques
     except WebSocketDisconnect:
         pass
     
-    except Exception:
-        pass
+    except Exception as err:
+        error_type = (err.__class__.__name__)
+        print("", "Websocket error ({})".format(error_type), err, sep = "\n")
     
     # Make sure we shut-down the connection when we're done
     await ws_request.close()
@@ -223,8 +222,9 @@ async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(w
     except WebSocketDisconnect:
         pass
     
-    except Exception:
-        pass
+    except Exception as err:
+        error_type = (err.__class__.__name__)
+        print("", "Websocket error ({})".format(error_type), err, sep = "\n")
     
     # Make sure we shut-down the connection when we're done
     await ws_request.close()
@@ -268,8 +268,9 @@ async def objects_ws_stream_many_metadata_gz_by_time_range(ws_request):
     except WebSocketDisconnect:
         pass
     
-    except Exception:
-        pass
+    except Exception as err:
+        error_type = (err.__class__.__name__)
+        print("", "Websocket error ({})".format(error_type), err, sep = "\n")
     
     #print("DEBUG: CLOSING?")
     
@@ -318,8 +319,9 @@ async def stations_ws_stream_many_metadata_gz_by_time_range(ws_request):
     except WebSocketDisconnect:
         pass
     
-    except Exception:
-        pass
+    except Exception as err:
+        error_type = (err.__class__.__name__)
+        print("", "Websocket error ({})".format(error_type), err, sep = "\n")
     
     #print("DEBUG: CLOSING?")
     # Make sure we shut-down the connection when we're done
@@ -375,15 +377,13 @@ def build_websocket_routes():
 # Establish (global!) variable used to access the persistent image folder
 IMAGE_FOLDER = build_base_image_pathing()
 
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
-
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Demo
 
 if __name__ == "__main__":
     pass
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Scrap

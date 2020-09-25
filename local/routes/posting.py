@@ -49,8 +49,7 @@ find_path_to_local()
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Imports
 
-from local.lib.mongo_helpers import connect_to_mongo, post_many_to_mongo
-from local.lib.mongo_helpers import check_collection_indexing, set_collection_indexing
+from local.lib.mongo_helpers import MCLIENT, post_many_to_mongo, check_collection_indexing, set_collection_indexing
 from local.lib.response_helpers import post_success_response, not_allowed_response, bad_request_response
 from local.lib.image_pathing import build_base_image_pathing, build_image_pathing
 
@@ -277,9 +276,6 @@ def build_posting_routes():
 
 # Establish (global!) variable used to access the persistent image folder
 IMAGE_FOLDER = build_base_image_pathing()
-
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------

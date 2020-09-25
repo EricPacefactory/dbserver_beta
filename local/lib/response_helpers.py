@@ -52,7 +52,9 @@ find_path_to_local()
 import gzip
 import ujson
 
-from starlette.responses import UJSONResponse 
+from pymongo.errors import ServerSelectionTimeoutError, AutoReconnect
+
+from starlette.responses import UJSONResponse
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_405_METHOD_NOT_ALLOWED
 
 
@@ -151,6 +153,30 @@ def encode_jsongz_data(metadata_dict, json_double_precision):
     encd_jsongz_data = gzip.compress(bytes(encd_json_data, "ascii"))
     
     return encd_jsongz_data
+
+# .....................................................................................................................
+# .....................................................................................................................
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+#%% Exception handling
+
+# .....................................................................................................................
+
+def mongo_connection_lost_response(request, exc):
+    return no_data_response("No connection to database!")
+
+# .....................................................................................................................
+    
+def get_exception_handlers():
+    
+    ''' Function which creates exception handler which is applied server-wide '''
+    
+    # Build entry for exception handler on server
+    exception_handlers = {ServerSelectionTimeoutError: mongo_connection_lost_response,
+                          AutoReconnect: mongo_connection_lost_response}
+    
+    return exception_handlers
 
 # .....................................................................................................................
 # .....................................................................................................................

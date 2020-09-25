@@ -52,9 +52,8 @@ find_path_to_local()
 from json import JSONDecodeError
 from time import perf_counter
 
-from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
+from local.lib.mongo_helpers import MCLIENT, post_one_to_mongo, get_collection_names_list, get_camera_names_list
 from local.lib.mongo_helpers import check_collection_indexing, set_collection_indexing
-from local.lib.mongo_helpers import get_collection_names_list, get_camera_names_list
 
 from local.lib.query_helpers import get_one_metadata, get_all_ids, get_newest_metadata
 
@@ -592,8 +591,7 @@ ENTRY_ID_FIELD = "_id"
 FINAL_EPOCH_MS_FIELD = "end"
 KEYS_TO_INDEX = [FINAL_EPOCH_MS_FIELD]
 
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
+# Set name of collection, which determines url routing + storage on mongoDB
 COLLECTION_BASE_NAME = "uistore"
 
 # Set shared uistore prefix indicator

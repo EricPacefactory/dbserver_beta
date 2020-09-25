@@ -53,7 +53,7 @@ import tarfile
 import io
 import base64
 
-from local.lib.mongo_helpers import connect_to_mongo
+from local.lib.mongo_helpers import MCLIENT
 
 from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
 from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_newest_metadata
@@ -531,8 +531,7 @@ IMAGE_FOLDER = build_base_image_pathing()
 # Hard-code (global!) variable used to indicate timing field
 EPOCH_MS_FIELD = "_id"
 
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
+# Set name of collection, which determines url routing + storage on mongoDB
 COLLECTION_NAME = "snapshots"
 
 

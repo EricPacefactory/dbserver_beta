@@ -55,7 +55,7 @@ from shutil import rmtree
 from local.lib.image_pathing import build_base_image_pathing
 from local.lib.image_pathing import get_old_snapshot_image_folders_list, get_old_background_image_folders_list
 
-from local.lib.mongo_helpers import connect_to_mongo
+from local.lib.mongo_helpers import MCLIENT
 from local.lib.timekeeper_utils import epoch_ms_to_local_isoformat
 from local.lib.query_helpers import url_time_to_epoch_ms, get_closest_metadata_before_target_ems
 from local.lib.response_helpers import parse_ujson_response
@@ -471,9 +471,6 @@ IMAGE_FOLDER = build_base_image_pathing()
 
 # Hard-code (global!) variable used to indicate timing field
 DEFAULT_EMS_FIELD = "_id"
-
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
 
 
 # ---------------------------------------------------------------------------------------------------------------------

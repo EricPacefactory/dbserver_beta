@@ -54,7 +54,7 @@ from time import perf_counter
 
 from local.lib.timekeeper_utils import get_local_datetime, datetime_to_epoch_ms, datetime_to_human_readable_string
 
-from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
+from local.lib.mongo_helpers import MCLIENT, post_one_to_mongo
 
 from local.lib.query_helpers import start_end_times_to_epoch_ms, get_count_in_time_range
 from local.lib.query_helpers import get_newest_metadata, get_oldest_metadata, get_all_ids, get_one_metadata
@@ -439,8 +439,7 @@ HUMAN_DATE_FIELD = "date"
 NOTE_TYPE_FIELD = "type"
 MESSAGE_FIELD = "text"
 
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
+# Set name of collection, which determines url routing + storage on mongoDB
 COLLECTION_NAME = "uinotes"
 
 

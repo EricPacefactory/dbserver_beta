@@ -53,8 +53,9 @@ from time import perf_counter
 from shutil import rmtree, disk_usage, which
 from subprocess import check_output
 
-from local.lib.mongo_helpers import check_mongo_connection, connect_to_mongo
-from local.lib.mongo_helpers import get_camera_names_list, get_collection_names_list, remove_camera_entry
+from local.lib.mongo_helpers import MCLIENT, check_mongo_connection
+from local.lib.mongo_helpers import get_collection_names_list, remove_camera_entry, get_camera_names_list
+
 from local.lib.timekeeper_utils import get_local_datetime, datetime_to_isoformat_string, datetime_to_epoch_ms
 from local.lib.image_pathing import build_base_image_pathing, build_camera_image_path
 from local.lib.response_helpers import not_allowed_response
@@ -491,8 +492,7 @@ def build_misc_routes():
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
 
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
+# Nothing so far!
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -500,6 +500,7 @@ MCLIENT = connect_to_mongo()
 
 if __name__ == "__main__":
     pass
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Scrap

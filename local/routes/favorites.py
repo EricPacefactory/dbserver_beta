@@ -51,7 +51,7 @@ find_path_to_local()
 
 from time import perf_counter
 
-from local.lib.mongo_helpers import connect_to_mongo, post_one_to_mongo
+from local.lib.mongo_helpers import MCLIENT, post_one_to_mongo
 
 from local.lib.query_helpers import start_end_times_to_epoch_ms
 from local.lib.query_helpers import get_all_ids, get_one_metadata, get_newest_metadata
@@ -367,8 +367,7 @@ FAVE_ID_FIELD = OBJ_ID_FIELD
 # Hard-code the list of keys that need indexing
 KEYS_TO_INDEX = [FIRST_EPOCH_MS_FIELD, FINAL_EPOCH_MS_FIELD]
 
-# Connection to mongoDB
-MCLIENT = connect_to_mongo()
+# Set name of collection, which determines url routing + storage on mongoDB
 COLLECTION_NAME = "favorites"
 
 
