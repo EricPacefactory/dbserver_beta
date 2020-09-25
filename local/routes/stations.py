@@ -55,6 +55,7 @@ from local.lib.mongo_helpers import connect_to_mongo, check_collection_indexing,
 
 from local.lib.query_helpers import start_end_times_to_epoch_ms
 from local.lib.query_helpers import get_all_ids, get_one_metadata, get_newest_metadata, get_oldest_metadata
+from local.lib.query_helpers import get_many_metadata_in_id_range
 
 from local.lib.response_helpers import bad_request_response, no_data_response
 
@@ -212,6 +213,24 @@ def stations_get_one_metadata_by_id(request):
 
 # .....................................................................................................................
 
+def stations_get_many_metadata_by_id_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_stn_id = int(request.path_params["start_id"])
+    end_stn_id = int(request.path_params["end_id"])
+    
+    # Make sure start/end are ordered correctly
+    start_stn_id, end_stn_id = sorted([start_stn_id, end_stn_id])
+    
+    # Request data from the db
+    collection_ref = get_station_collection(camera_select)
+    query_result = get_many_metadata_in_id_range(collection_ref, start_stn_id, end_stn_id)
+    
+    return UJSONResponse(query_result)
+
+# .....................................................................................................................
+
 def stations_get_many_metadata_by_time_range(request):
     
     # Get information from route url
@@ -326,6 +345,9 @@ def build_station_routes():
      
      Route(url("get-one-metadata", "by-id", "{station_data_id:int}"),
                stations_get_one_metadata_by_id),
+     
+     Route(url("get-many-metadata", "by-id-range", "{start_id:int}", "{end_id:int}"),
+               stations_get_many_metadata_by_id_range),
      
      Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
                stations_get_many_metadata_by_time_range),

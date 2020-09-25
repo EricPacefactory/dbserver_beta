@@ -203,6 +203,11 @@ def get_many_metadata_since_target_ems(collection_ref, target_ems, epoch_ms_fiel
 def get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, epoch_ms_field = "_id",
                                     ascending_order = True):
     
+    '''
+    Function to get multiple metadata entries based on a start & end epoch_ms value
+    Note that the returned data is inclusive on start time, but not on end time, i.e. data in range: [start, end)
+    '''
+    
     # Build query
     query_dict = {epoch_ms_field: {"$gte": start_ems, "$lt": end_ems}}
     projection_dict = None
@@ -212,6 +217,22 @@ def get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, epoch_ms
     query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, sort_order)
     
     return query_result
+
+# .....................................................................................................................
+
+def get_many_metadata_in_id_range(collection_ref, start_id, end_id, ascending_order = True):
+    
+    ''' Similar to getting metadata by time range, but range is consider inclusive on start/end ids! '''
+    
+    # Build query
+    query_dict = {"_id": {"$gte": start_id, "$lte": end_id}}
+    projection_dict = None
+    
+    # Request data from the db
+    sort_order = ASCENDING if ascending_order else DESCENDING
+    query_result = collection_ref.find(query_dict, projection_dict).sort("_id", sort_order)
+    
+    return  query_result
 
 # .....................................................................................................................
 

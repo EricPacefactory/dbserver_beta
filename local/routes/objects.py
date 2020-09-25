@@ -55,6 +55,7 @@ from local.lib.mongo_helpers import connect_to_mongo, check_collection_indexing,
 
 from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
 from local.lib.query_helpers import get_all_ids, get_one_metadata, get_newest_metadata
+from local.lib.query_helpers import get_many_metadata_in_id_range
 
 from local.lib.response_helpers import bad_request_response, no_data_response
 
@@ -200,6 +201,24 @@ def objects_get_one_metadata_by_id(request):
     if not query_result:
         error_message = "No object with id {}".format(object_full_id)
         return bad_request_response(error_message)
+    
+    return UJSONResponse(query_result)
+
+# .....................................................................................................................
+
+def objects_get_many_metadata_by_id_range(request):
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_obj_id = int(request.path_params["start_id"])
+    end_obj_id = int(request.path_params["end_id"])
+    
+    # Make sure start/end are ordered correctly
+    start_obj_id, end_obj_id = sorted([start_obj_id, end_obj_id])
+    
+    # Request data from the db
+    collection_ref = get_object_collection(camera_select)
+    query_result = get_many_metadata_in_id_range(collection_ref, start_obj_id, end_obj_id)
     
     return UJSONResponse(query_result)
 
@@ -359,6 +378,9 @@ def build_object_routes():
      
      Route(url("get-one-metadata", "by-id", "{object_full_id:int}"),
                objects_get_one_metadata_by_id),
+     
+     Route(url("get-many-metadata", "by-id-range", "{start_id:int}", "{end_id:int}"),
+               objects_get_many_metadata_by_id_range),
      
      Route(url("get-many-metadata", "by-time-target", "{target_time}"),
                objects_get_many_metadata_at_target_time),
