@@ -94,12 +94,17 @@ def get_connections_info(request):
 
 # .....................................................................................................................
 
-def get_index_info(request):
+def get_index_tree(request):
     
     ''' Function which lists all indices across all collections/cameras '''
     
-    # Loop over every collection of every camera and get index information
+    # Initialize output
     indices_tree = {}
+    
+    # Start timing
+    t_start = perf_counter()
+    
+    # Loop over every collection of every camera and get index information
     camera_names_list = get_camera_names_list(MCLIENT)
     for each_camera_name in camera_names_list:
         
@@ -123,6 +128,13 @@ def get_index_info(request):
             list_not_empty = (len(index_keys_list) > 0)
             if list_not_empty:
                 indices_tree[each_camera_name][each_collection_name] = index_keys_list
+    
+    # End timing
+    t_end = perf_counter()
+    
+    # Add timing info to response
+    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
+    indices_tree["time_taken_ms"] = time_taken_ms
     
     return UJSONResponse(indices_tree)
 
@@ -270,8 +282,13 @@ def get_document_count_tree(request):
     
     ''' Function which lists all database -> collection -> document counts '''
     
-    # Loop over every collection of every camera and count all documents
+    # Initialize output
     doc_count_tree = {}
+    
+    # Start timing
+    t_start = perf_counter()
+    
+    # Loop over every collection of every camera and count all documents
     camera_names_list = sorted(get_camera_names_list(MCLIENT))
     for each_camera_name in camera_names_list:
         
@@ -288,6 +305,13 @@ def get_document_count_tree(request):
             
             # Store results nested by camera & collection name
             doc_count_tree[each_camera_name][each_collection_name] = collection_document_count
+    
+    # End timing
+    t_end = perf_counter()
+    
+    # Add timing info to response
+    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
+    doc_count_tree["time_taken_ms"] = time_taken_ms
     
     return UJSONResponse(doc_count_tree)
 
@@ -306,7 +330,7 @@ def build_diagnostics_routes():
     diagnostics_routes = \
     [
      Route("/get-connections-info", get_connections_info),
-     Route("/get-index-info", get_index_info),
+     Route("/get-index-tree", get_index_tree),
      Route("/get-memory-usage", get_memory_usage),
      Route("/get-disk-usage", get_disk_usage_for_images),
      Route("/get-metadata-usage", get_metadata_bytes_per_camera),
