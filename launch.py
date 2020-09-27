@@ -34,6 +34,7 @@ from local.routes.snapshots import build_snapshot_routes
 from local.routes.websockets import build_websocket_routes
 
 from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
+from local.lib.timekeeper_utils import timestamped_log
 from local.lib.response_helpers import get_exception_handlers
 from local.lib.quitters import ide_catcher
 
@@ -105,7 +106,8 @@ def asgi_startup():
     register_shutdown_command()
     
     # Some feedback, mostly for docker logs
-    print("", "Started dbserver!", sep = "\n", flush = True)
+    start_msg = timestamped_log("Started dbserver!")
+    print("", start_msg, sep = "\n", flush = True)
     
     return
 
@@ -114,7 +116,8 @@ def asgi_startup():
 def asgi_shutdown():
     
     # Some feedback, mostly for docker logs
-    print("", "Stopping dbserver!", sep = "\n", flush = True)
+    stop_msg = timestamped_log("Stopping dbserver!")
+    print("", stop_msg, sep = "\n", flush = True)
     
     # Close the (global!) mongo connection
     MCLIENT.close()

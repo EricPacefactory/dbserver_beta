@@ -68,6 +68,66 @@ from starlette.routing import Route
 
 # .....................................................................................................................
 
+def get_connections_info(request):
+    
+    ''' Route which returns info regarding the number of connections to mongoDB '''
+    
+    # For convenience
+    connections_err =  {"error": "Couldn't access connections info!"}
+    
+    # Start timing
+    t_start = perf_counter()
+    
+    # Use the 'admin' database to list out the current connections (globally?)
+    admin_name = "admin"
+    admin_ref = MCLIENT.get_database(admin_name)
+    return_result = admin_ref.command("serverStatus").get("connections", connections_err)
+    
+    # End timing
+    t_end = perf_counter()
+    
+    # Bundle returned data
+    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
+    return_result["time_taken_ms"] = time_taken_ms
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def get_index_info(request):
+    
+    ''' Function which lists all indices across all collections/cameras '''
+    
+    # Loop over every collection of every camera and get index information
+    indices_tree = {}
+    camera_names_list = get_camera_names_list(MCLIENT)
+    for each_camera_name in camera_names_list:
+        
+        # Add each camera name to the tree
+        indices_tree[each_camera_name] = {}
+        
+        # Get indices for each collection
+        camera_collection_names_list = get_collection_names_list(MCLIENT, each_camera_name)
+        for each_collection_name in camera_collection_names_list:
+            
+            # Get indexing info
+            collection_ref = MCLIENT[each_camera_name][each_collection_name]
+            index_info_dict = collection_ref.index_information()
+            
+            # Remove '_id' entries to declutter, since they can be assumed (why is there an extra underscore?)
+            if "_id_" in index_info_dict:
+                del index_info_dict["_id_"]
+            
+            # Add the list of (non-id) indexes to the tree, but only if the list is not empty (helps declutter)
+            index_keys_list = list(index_info_dict.keys())
+            list_not_empty = (len(index_keys_list) > 0)
+            if list_not_empty:
+                indices_tree[each_camera_name][each_collection_name] = index_keys_list
+    
+    return UJSONResponse(indices_tree)
+
+# .....................................................................................................................
+
 def get_memory_usage(request):
     
     '''
@@ -179,6 +239,7 @@ def get_metadata_bytes_per_camera(request):
     camera_names_list = get_camera_names_list(MCLIENT)
     
     # Find the 'sizeOnDisk' of each database (i.e. camera) on mongoDB
+    total_size_on_disk_bytes = 0
     databases_info_list = MCLIENT.list_databases()
     for each_list_entry in databases_info_list:
         
@@ -190,86 +251,18 @@ def get_metadata_bytes_per_camera(request):
         # Get/store sizing info
         size_on_disk_bytes = int(each_list_entry.get("sizeOnDisk", size_if_error))
         size_per_camera_bytes[db_name] = size_on_disk_bytes
+        total_size_on_disk_bytes += size_on_disk_bytes if size_on_disk_bytes > 0 else 0
     
     # End timing
     t_end = perf_counter()
     
     # Bundle returned data
     time_taken_ms = calculate_time_taken_ms(t_start, t_end)
-    return_result = {"metadata_size_on_disk_bytes": size_per_camera_bytes,
+    return_result = {"camera_metadata_bytes": size_per_camera_bytes,
+                     "total_bytes": total_size_on_disk_bytes,
                      "time_taken_ms": time_taken_ms}
     
     return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def get_mongo_connections(request):
-    
-    ''' Route which returns info regarding the number of connections to mongoDB '''
-    
-    # For convenience
-    connections_err =  {"error": "Couldn't access connections info!"}
-    
-    # Initialize output
-    connections_dict = {}
-    
-    # Start timing
-    t_start = perf_counter()
-    
-    # Use the 'admin' database to list out the current connections (globally?)
-    admin_name = "admin"
-    admin_ref = MCLIENT.get_database(admin_name)
-    admin_connections = admin_ref.command("serverStatus").get("connections", connections_err)
-    connections_dict[admin_name] = admin_connections
-    
-    # Then get connections per-camera
-    camera_names_list = get_camera_names_list(MCLIENT)
-    for each_camera_name in camera_names_list:
-        camera_db_ref = MCLIENT.get_database(each_camera_name)
-        camera_connections = camera_db_ref.command("serverStatus").get("connections", connections_err)
-        connections_dict[each_camera_name] = camera_connections
-    
-    # End timing
-    t_end = perf_counter()
-    
-    # Bundle returned data
-    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
-    return_result = {"connections": connections_dict,
-                     "time_taken_ms": time_taken_ms}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def get_all_indices(request):
-    
-    ''' Function which lists all indices across all collections/cameras '''
-    
-    # Loop over every collection of every camera and get index information
-    indices_tree = {}
-    camera_names_list = get_camera_names_list(MCLIENT)
-    for each_camera_name in camera_names_list:
-        
-        # Add each camera name to the tree
-        indices_tree[each_camera_name] = {}
-        
-        # Get indices for each collection
-        camera_collection_names_list = get_collection_names_list(MCLIENT, each_camera_name)
-        for each_collection_name in camera_collection_names_list:
-            
-            # Get indexing info
-            collection_ref = MCLIENT[each_camera_name][each_collection_name]
-            index_info_dict = collection_ref.index_information()
-            
-            # Remove '_id' entries to declutter, since they can be assumed (why is there an extra underscore?)
-            if "_id_" in index_info_dict:
-                del index_info_dict["_id_"]
-            
-            # Add the list of (non-id) indexes to the tree
-            index_keys_list = list(index_info_dict.keys())
-            indices_tree[each_camera_name][each_collection_name] = index_keys_list
-    
-    return UJSONResponse(indices_tree)
 
 # .....................................................................................................................
 
@@ -312,12 +305,12 @@ def build_diagnostics_routes():
     # Bundle all diagnostics routes
     diagnostics_routes = \
     [
+     Route("/get-connections-info", get_connections_info),
+     Route("/get-index-info", get_index_info),
      Route("/get-memory-usage", get_memory_usage),
      Route("/get-disk-usage", get_disk_usage_for_images),
      Route("/get-metadata-usage", get_metadata_bytes_per_camera),
-     Route("/get-document-count-tree", get_document_count_tree),
-     Route("/get-all-indices", get_all_indices),
-     Route("/get-connections-info", get_mongo_connections)
+     Route("/get-document-count-tree", get_document_count_tree)
     ]
     
     return diagnostics_routes
