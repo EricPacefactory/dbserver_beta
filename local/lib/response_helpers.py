@@ -118,6 +118,11 @@ def post_success_response(success_message = True, additional_response_dict = Non
 
 # .....................................................................................................................
 
+def calculate_time_taken_ms(time_start, time_end):
+    return int(round(1000 * (time_end - time_start)))
+
+# .....................................................................................................................
+
 def parse_ujson_response(ujson_response_object):
     
     # Check if the response is valid

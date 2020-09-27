@@ -50,15 +50,14 @@ find_path_to_local()
 #%% Imports
 
 from time import perf_counter
-from shutil import rmtree, disk_usage, which
-from subprocess import check_output
+from shutil import rmtree
 
 from local.lib.mongo_helpers import MCLIENT, check_mongo_connection
-from local.lib.mongo_helpers import get_collection_names_list, remove_camera_entry, get_camera_names_list
+from local.lib.mongo_helpers import remove_camera_entry, get_camera_names_list
 
 from local.lib.timekeeper_utils import get_local_datetime, datetime_to_isoformat_string, datetime_to_epoch_ms
 from local.lib.image_pathing import build_base_image_pathing, build_camera_image_path
-from local.lib.response_helpers import not_allowed_response
+from local.lib.response_helpers import not_allowed_response, calculate_time_taken_ms
 
 from starlette.responses import UJSONResponse, HTMLResponse
 from starlette.routing import Route
@@ -77,11 +76,6 @@ def get_current_timing_info():
     local_time_as_ems = datetime_to_epoch_ms(local_time_as_dt)
     
     return local_time_as_dt, local_time_as_isoformat, local_time_as_ems
-
-# .....................................................................................................................
-
-def calculate_time_taken_ms(time_start, time_end):
-    return int(round(1000 * (time_end - time_start)))
 
 # .....................................................................................................................
 
@@ -161,129 +155,6 @@ def cameras_get_all_names(request):
     camera_names_list = get_camera_names_list(MCLIENT)
     
     return UJSONResponse(camera_names_list)
-
-# .....................................................................................................................
-
-def get_memory_usage(request):
-    
-    '''
-    Route which returns info about memory usage (RAM & swap)
-    Relies on the output from the 'free' command, which looks like:
-    
-    $ free -b
-                  total        used        free      shared  buff/cache   available
-    Mem:     8359682048  1588756480  1553772544    44699648  5217153024  6440677376
-    Swap:    2147479552           0  2147479552
-    '''
-    
-    # First make sure the free command is available
-    mem_cmd = "free"
-    command_bin_path = which(mem_cmd)
-    if command_bin_path is None:
-        return_result = {"error": "Memory-check program ({}) is not present!".format(mem_cmd)}
-        return UJSONResponse(return_result)
-    
-    # Initialize outputs, in case this fails
-    ram_bytes_dict = "error"
-    swap_bytes_dict = "error"
-    ram_percent_usage = "error"
-    
-    # Start timing, mostly for fun (and vaguely useful as a heads-up if this command is super slow)
-    t_start = perf_counter()
-    
-    try:
-        # Get result from the free command and split into rows
-        free_memory_response = check_output([mem_cmd, "-b"], universal_newlines = True)
-        free_memory_response_rows = free_memory_response.splitlines()
-        
-        # Split rows of free command into header/RAM/swap
-        headers_str_list = free_memory_response_rows[0].split()
-        ram_str_list = free_memory_response_rows[1].split()
-        swap_str_list = free_memory_response_rows[2].split()
-        
-        # Build RAM output
-        ram_int_list = (int(each_str) for each_str in ram_str_list[1:])
-        ram_bytes_dict = dict(zip(headers_str_list, ram_int_list))
-        
-        # Build swap output
-        swap_int_list = (int(each_str) for each_str in swap_str_list[1:])
-        swap_bytes_dict = dict(zip(headers_str_list, swap_int_list))
-        
-        # Try to calculate a simple 'human-readable' value for output
-        ram_percent_usage = int(round(100 * ram_bytes_dict["used"] / ram_bytes_dict["total"]))
-        
-    except (ValueError, IndexError, TypeError) as err:
-        print("Error checking memory usage ({})".format(err.__class__.__name__))
-        print(err)
-    
-    # End timing
-    t_end = perf_counter()
-    
-    # Bundle returned data
-    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
-    return_result = {"ram_bytes": ram_bytes_dict,
-                     "swap_bytes": swap_bytes_dict,
-                     "ram_percent_usage": ram_percent_usage,
-                     "time_taken_ms": time_taken_ms}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def get_disk_usage_for_images(request):
-    
-    ''' Route which returns info regarding the current disk (HDD/SSD) usage '''
-    
-    # Start timing
-    t_start = perf_counter()
-    
-    # Find the (full-drive) usage of the partition holding the image data
-    base_image_path = build_base_image_pathing()
-    total_bytes, used_bytes, free_bytes = disk_usage(base_image_path)
-    
-    # Calculate a simple 'human-readable' value for output
-    percent_usage = int(round(100 * used_bytes / total_bytes))
-    
-    # End timing
-    t_end = perf_counter()
-    
-    # Bundle returned data
-    time_taken_ms = calculate_time_taken_ms(t_start, t_end)
-    return_result = {"total_bytes": total_bytes,
-                     "used_bytes": used_bytes,
-                     "free_bytes": free_bytes,
-                     "percent_usage": percent_usage,
-                     "note": "Usage for drive containing images only! May not account for metadata storage",
-                     "time_taken_ms": time_taken_ms}
-    
-    return UJSONResponse(return_result)
-
-# .....................................................................................................................
-
-def get_document_count_tree(request):
-    
-    ''' Function which lists all database -> collection -> document counts '''
-    
-    # Loop over every collection of every camera and count all documents
-    doc_count_tree = {}
-    camera_names_list = sorted(get_camera_names_list(MCLIENT))
-    for each_camera_name in camera_names_list:
-        
-        # Add each camera name to the tree
-        doc_count_tree[each_camera_name] = {}
-        
-        # Loop over all collections for the given camera
-        camera_collection_names_list = sorted(get_collection_names_list(MCLIENT, each_camera_name))
-        for each_collection_name in camera_collection_names_list:
-            
-            # Get the document count for each collection
-            collection_ref = MCLIENT[each_camera_name][each_collection_name]
-            collection_document_count = collection_ref.count_documents({})
-            
-            # Store results nested by camera & collection name
-            doc_count_tree[each_camera_name][each_collection_name] = collection_document_count
-    
-    return  UJSONResponse(doc_count_tree)
 
 # .....................................................................................................................
 
@@ -476,9 +347,6 @@ def build_misc_routes():
      Route("/", root_page),
      Route("/is-alive", is_alive_check),
      Route("/get-all-camera-names", cameras_get_all_names),
-     Route("/get-memory-usage", get_memory_usage),
-     Route("/get-disk-usage", get_disk_usage_for_images),
-     Route("/get-document-count-tree", get_document_count_tree),
      Route("/remove/one-camera/{camera_select:str}/{sanity_check}", remove_one_camera),
      Route("/remove/all-cameras/{sanity_check}", remove_all_cameras)
     ]

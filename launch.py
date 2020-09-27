@@ -21,6 +21,7 @@ from local.routes.posting import build_posting_routes
 from local.routes.deleting import build_deleting_routes
 from local.routes.logging import build_logging_routes
 from local.routes.misc import build_help_route, build_misc_routes
+from local.routes.diagnostics import build_diagnostics_routes
 from local.routes.uinotes import build_uinotes_routes
 from local.routes.uistore import build_uistore_routes
 from local.routes.camerainfo import build_camerainfo_routes
@@ -52,6 +53,7 @@ def build_all_routes():
     # Bundle all routes in order, with titles used to group routes on the help page
     all_routes_dict = OrderedDict()
     all_routes_dict["Miscellaneous"] = build_misc_routes()
+    all_routes_dict["Diagnostics"] = build_diagnostics_routes()
     all_routes_dict["UI Notes"] = build_uinotes_routes()
     all_routes_dict["UI Storage"] = build_uistore_routes()
     all_routes_dict["Camera Info"] = build_camerainfo_routes()
