@@ -191,13 +191,14 @@ def time_datetime_isoformat_to_epoch_ms(request):
     try:
         epoch_ms = isoformat_to_epoch_ms(datetime_isoformat_str)
         
-    except ValueError:
+    except (IndexError, ValueError):
         _, local_time_as_isoformat, _ = get_current_timing_info()
         error_message = ["Couldn't convert to epoch ms value!",
                          "Isoformat:",
                          "YYYY-MM-DDThh:mm:ss.ms+ZZ:ZZ",
                          "",
-                         "Example: {}".format(local_time_as_isoformat)]
+                         "Example: {}".format(local_time_as_isoformat),
+                         "    Got: {}".format(datetime_isoformat_str)]
         return bad_request_response(error_message)
     
     return UJSONResponse(epoch_ms)
