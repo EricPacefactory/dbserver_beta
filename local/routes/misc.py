@@ -55,9 +55,12 @@ from shutil import rmtree
 from local.lib.mongo_helpers import MCLIENT, check_mongo_connection
 from local.lib.mongo_helpers import remove_camera_entry, get_camera_names_list
 
-from local.lib.timekeeper_utils import get_local_datetime, datetime_to_isoformat_string, datetime_to_epoch_ms
+from local.lib.timekeeper_utils import get_local_datetime
+from local.lib.timekeeper_utils import datetime_to_isoformat_string, datetime_to_epoch_ms
+from local.lib.timekeeper_utils import epoch_ms_to_local_isoformat, isoformat_to_epoch_ms
+
 from local.lib.image_pathing import build_base_image_pathing, build_camera_image_path
-from local.lib.response_helpers import not_allowed_response, calculate_time_taken_ms
+from local.lib.response_helpers import bad_request_response, not_allowed_response, calculate_time_taken_ms
 
 from starlette.responses import UJSONResponse, HTMLResponse
 from starlette.routing import Route
@@ -155,6 +158,49 @@ def cameras_get_all_names(request):
     camera_names_list = get_camera_names_list(MCLIENT)
     
     return UJSONResponse(camera_names_list)
+
+# .....................................................................................................................
+
+def time_epoch_ms_to_datetime_isoformat(request):
+    
+    ''' Route which converts epoch ms values to datetime isoformat values '''
+    
+    # Get information from route url
+    epoch_ms = request.path_params["epoch_ms"]
+    
+    # Perform time conversion
+    try:
+        datetime_isoformat_str = epoch_ms_to_local_isoformat(epoch_ms)
+        
+    except (OverflowError, ValueError):
+        error_message = "Epoch ms value was too large!"
+        return bad_request_response(error_message)
+    
+    return UJSONResponse(datetime_isoformat_str)
+
+# .....................................................................................................................
+
+def time_datetime_isoformat_to_epoch_ms(request):
+    
+    ''' Route which converts isoformat datetime values to epoch ms values '''
+    
+    # Get information from route url
+    datetime_isoformat_str = request.path_params["datetime_isoformat"]
+    
+    # Perform time conversion if possible
+    try:
+        epoch_ms = isoformat_to_epoch_ms(datetime_isoformat_str)
+        
+    except ValueError:
+        _, local_time_as_isoformat, _ = get_current_timing_info()
+        error_message = ["Couldn't convert to epoch ms value!",
+                         "Isoformat:",
+                         "YYYY-MM-DDThh:mm:ss.ms+ZZ:ZZ",
+                         "",
+                         "Example: {}".format(local_time_as_isoformat)]
+        return bad_request_response(error_message)
+    
+    return UJSONResponse(epoch_ms)
 
 # .....................................................................................................................
 
@@ -347,6 +393,8 @@ def build_misc_routes():
      Route("/", root_page),
      Route("/is-alive", is_alive_check),
      Route("/get-all-camera-names", cameras_get_all_names),
+     Route("/time/ems-to-isoformat/{epoch_ms:int}", time_epoch_ms_to_datetime_isoformat),
+     Route("/time/isoformat-to-ems/{datetime_isoformat:str}", time_datetime_isoformat_to_epoch_ms),
      Route("/remove/one-camera/{camera_select:str}/{sanity_check}", remove_one_camera),
      Route("/remove/all-cameras/{sanity_check}", remove_all_cameras)
     ]
