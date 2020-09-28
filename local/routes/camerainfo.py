@@ -52,9 +52,9 @@ find_path_to_local()
 from local.lib.mongo_helpers import MCLIENT
 
 from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epoch_ms
-from local.lib.query_helpers import get_newest_metadata, get_oldest_metadata
-from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
-from local.lib.query_helpers import get_count_in_time_range
+from local.lib.query_helpers import get_newest_metadata, get_oldest_metadata, get_many_metadata_in_time_range
+from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_closest_metadata_after_target_ems
+from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
 
 from local.lib.response_helpers import no_data_response
 
@@ -173,6 +173,52 @@ def caminfo_get_many_metadata(request):
 
 # .....................................................................................................................
 
+def caminfo_get_ems_list_by_time_range(request):
+    
+    '''
+    Route which takes in a time range and returns a list of camera start times within the range
+    If start times exists before or after the given range, then the given start/end times
+    will be included in the list as well
+    '''
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    start_time = request.path_params["start_time"]
+    end_time = request.path_params["end_time"]
+    
+    # Convert start/end times to ems values
+    start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
+    
+    # Get reference to collection to use for queries
+    collection_ref = get_camera_info_collection(camera_select)
+    
+    # Get start times within the given time range
+    in_range_start_ems_list = get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
+    
+    # Get start times just before/after the given range, if available
+    no_prev_entry, prev_entry = get_closest_metadata_before_target_ems(collection_ref, start_ems, EPOCH_MS_FIELD)
+    no_next_entry, next_entry = get_closest_metadata_after_target_ems(collection_ref, end_ems, EPOCH_MS_FIELD)
+    
+    # Build a list of all start ems values within the given time range
+    output_start_ems_list = []
+    
+    # If a camera info entry exists prior to the given range, begin the output list with the given start time itself
+    prev_entry_exists = (not no_prev_entry)
+    if prev_entry_exists:
+        output_start_ems_list += [start_ems]
+    
+    # Add all in-range start times
+    output_start_ems_list += in_range_start_ems_list
+    
+    # If a camera info entry exists after the given range, end the output list with the given end time instead
+    next_entry_exists = (not no_next_entry)
+    if next_entry_exists:
+        output_start_ems_list += [end_ems]
+    
+    return UJSONResponse(output_start_ems_list)
+
+# .....................................................................................................................
+
 def caminfo_count_by_time_range(request):
     
     # Get information from route url
@@ -232,6 +278,9 @@ def build_camerainfo_routes():
      
      Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
            caminfo_get_many_metadata),
+     
+     Route(url("get-ems-list", "by-time-range", "{start_time}", "{end_time}"),
+           caminfo_get_ems_list_by_time_range),
      
      Route(url("count", "by-time-range", "{start_time}", "{end_time}"),
            caminfo_count_by_time_range)
