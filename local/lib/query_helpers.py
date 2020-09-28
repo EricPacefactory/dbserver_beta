@@ -152,8 +152,8 @@ def get_oldest_metadata(collection_ref, epoch_ms_field = "_id"):
 def get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_field = "_id"):
     
     '''
-    Helper function which returns the query result for the closest entry 
-    in a collection before a given epoch_ms time. 
+    Helper function which returns the query result for the closest entry
+    in a collection before a given epoch_ms time.
     Often needed for data that is relevant for time intervals (e.g. camera info or backgrounds)
     
     Inputs:
@@ -161,12 +161,11 @@ def get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_
         
         target_ems --> (integer) Epoch millisecond value which is used as target time from which we'll
                        search backwards from to find the 'closest' entry in the collection
-                       
+        
         epoch_ms_field --> (string) The field which we represents an epoch_ms time value for the given collection
         
     Outputs:
         no_older_entry (boolean), entry_dict (dictionary or None)
-    
     '''
     
     # Find the first entry before (or at) the target time
@@ -180,7 +179,41 @@ def get_closest_metadata_before_target_ems(collection_ref, target_ems, epoch_ms_
     # (which may be empty if there is no entry before the target time)
     metadata_dict = first_of_query(query_result, return_if_missing = None)
     no_older_metadata = (metadata_dict is None)
+    
+    return no_older_metadata, metadata_dict
+
+# .....................................................................................................................
+
+def get_closest_metadata_after_target_ems(collection_ref, target_ems, epoch_ms_field = "_id"):
+    
+    '''
+    Helper function which returns the query result for the closest entry
+    in a collection after a given epoch_ms time.
+    
+    Inputs:
+        collection_ref --> a pymongo.MongoClient(...) object, which has a collection selected already
         
+        target_ems --> (integer) Epoch millisecond value which is used as target time from which we'll
+                       search forwards from to find the 'closest' entry in the collection
+        
+        epoch_ms_field --> (string) The field which we represents an epoch_ms time value for the given collection
+        
+    Outputs:
+        no_older_entry (boolean), entry_dict (dictionary or None)
+    '''
+    
+    # Find the first entry after (or at) the target time
+    query_dict = {epoch_ms_field: {"$gte": target_ems}}
+    projection_dict = None
+    
+    # Request data from the db
+    query_result = collection_ref.find(query_dict, projection_dict).sort(epoch_ms_field, ASCENDING).limit(1)
+    
+    # Try to get the newest data from the given list
+    # (which may be empty if there is no entry before the target time)
+    metadata_dict = first_of_query(query_result, return_if_missing = None)
+    no_older_metadata = (metadata_dict is None)
+    
     return no_older_metadata, metadata_dict
 
 # .....................................................................................................................

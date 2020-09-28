@@ -59,6 +59,7 @@ from local.lib.query_helpers import url_time_to_epoch_ms, start_end_times_to_epo
 from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_newest_metadata
 from local.lib.query_helpers import get_many_metadata_in_time_range
 from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
+from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_closest_metadata_after_target_ems
 
 from local.lib.response_helpers import no_data_response, bad_request_response
 from local.lib.query_helpers import first_of_query
@@ -317,6 +318,50 @@ def snap_get_closest_metadata_by_time(request):
 
 # .....................................................................................................................
 
+def snap_get_previous_metadata_by_time(request):
+    
+    ''' Route which returns the closest metadata entry before (or at) a given target time '''
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_time = request.path_params["target_time"]
+    target_ems = url_time_to_epoch_ms(target_time)
+    
+    # Find the prior metadata entry
+    collection_ref = get_snapshot_collection(camera_select)
+    no_older_entry, entry_dict = get_closest_metadata_before_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_older_entry:
+        error_message = "No metadata before time {}".format(target_ems)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(entry_dict)
+
+# .....................................................................................................................
+
+def snap_get_next_metadata_by_time(request):
+    
+    ''' Route which returns the closest metadata entry after (or at) a given target time '''
+    
+    # Get information from route url
+    camera_select = request.path_params["camera_select"]
+    target_time = request.path_params["target_time"]
+    target_ems = url_time_to_epoch_ms(target_time)
+    
+    # Find the next metadata entry
+    collection_ref = get_snapshot_collection(camera_select)
+    no_older_entry, entry_dict = get_closest_metadata_after_target_ems(collection_ref, target_ems, EPOCH_MS_FIELD)
+    
+    # Handle missing metadata
+    if no_older_entry:
+        error_message = "No metadata after time {}".format(target_ems)
+        return no_data_response(error_message)
+    
+    return UJSONResponse(entry_dict)
+
+# .....................................................................................................................
+
 def snap_get_one_metadata(request):
     
     # Get information from route url
@@ -490,6 +535,12 @@ def build_snapshot_routes():
      
      Route(url("get-closest-metadata", "by-time-target", "{target_time}"),
                snap_get_closest_metadata_by_time),
+     
+     Route(url("get-previous-metadata", "by-time-target", "{target_time}"),
+               snap_get_previous_metadata_by_time),
+     
+     Route(url("get-next-metadata", "by-time-target", "{target_time}"),
+               snap_get_next_metadata_by_time),
      
      Route(url("get-many-metadata", "by-time-range", "{start_time}", "{end_time}"),
                snap_get_many_metadata),
