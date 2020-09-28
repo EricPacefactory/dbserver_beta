@@ -135,14 +135,14 @@ def connect_to_mongo(connection_timeout_ms = 2500, max_connection_attempts = 10)
                   "ERROR:",
                   "Server couldn't connect to database",
                   "@ {}".format(mongo_url),
-                  "  --> Trying again (attempt {})".format(1 + k), sep = "\n")
+                  "  --> Trying again (attempt {})".format(1 + k), sep = "\n", flush = True)
             sleep(3)
         
         # Print additional warning indicator if we fail to connect after repeated attempts
         if not is_connected:
             print("",
                   "Connection attempts to database failed!",
-                  "Server will start up anyways, but requests may not work...", sep = "\n")
+                  "Server will start up anyways, but requests may not work...", sep = "\n", flush = True)
         
     except KeyboardInterrupt:
         mongo_client.close()
