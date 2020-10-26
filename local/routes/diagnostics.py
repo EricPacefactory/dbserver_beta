@@ -50,14 +50,15 @@ find_path_to_local()
 #%% Imports
 
 from time import perf_counter
-from shutil import disk_usage, which
+from shutil import which
 from subprocess import check_output
 
 from local.lib.mongo_helpers import MCLIENT
 from local.lib.mongo_helpers import get_collection_names_list, get_camera_names_list
 
-from local.lib.pathing import BASE_DATA_FOLDER_PATH
 from local.lib.response_helpers import calculate_time_taken_ms
+
+from local.lib.data_deletion import get_disk_usage
 
 from starlette.responses import UJSONResponse
 from starlette.routing import Route
@@ -214,10 +215,7 @@ def get_disk_usage_for_images(request):
     t_start = perf_counter()
     
     # Find the disk usage of the partition holding the file system data
-    total_bytes, used_bytes, free_bytes = disk_usage(BASE_DATA_FOLDER_PATH)
-    
-    # Calculate a simple 'human-readable' value for output
-    percent_usage = int(round(100 * used_bytes / total_bytes))
+    total_bytes, used_bytes, free_bytes, percent_usage = get_disk_usage()
     
     # End timing
     t_end = perf_counter()

@@ -213,6 +213,22 @@ class Autodelete_Settings:
 
 # .....................................................................................................................
 
+def get_disk_usage():
+    
+    '''
+    Helper function which handles disk usage lookup
+    Returns:
+        total_bytes, used_bytes, free_bytes, disk_usage_percentage
+    '''
+    
+    # Get current disk usage (at least for the partition holding data for the dbserver itself)
+    total_bytes, used_bytes, free_bytes = disk_usage(BASE_DATA_FOLDER_PATH)
+    disk_usage_percentage = int(round(100 * (used_bytes / total_bytes)))
+    
+    return total_bytes, used_bytes, free_bytes, disk_usage_percentage
+
+# .....................................................................................................................
+
 def delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field):
     
     ''' Helper function which deletes all documents (from MongoDB) older than a provided cutoff epoch ms value '''
@@ -517,8 +533,7 @@ def delete_by_disk_usage(mongo_client, camera_names_list, oldest_data_dt, max_di
     '''
     
     # Get current disk usage (at least for the partition holding data for the dbserver itself)
-    total_bytes, used_bytes, free_bytes = disk_usage(BASE_DATA_FOLDER_PATH)
-    current_disk_usage_pct = int(round(100 * (used_bytes / total_bytes)))
+    _, _, _, current_disk_usage_pct = get_disk_usage()
     
     # If we don't need to delete by disk-usage, we're done
     dont_delete = (current_disk_usage_pct < max_disk_usage_percent)
@@ -551,8 +566,7 @@ def delete_by_disk_usage(mongo_client, camera_names_list, oldest_data_dt, max_di
             time_taken_ms_dict[each_camera_name] += time_taken_ms
         
         # Re-check the disk usage to see if we can stop deleting!
-        total_bytes, used_bytes, free_bytes = disk_usage(BASE_DATA_FOLDER_PATH)
-        current_disk_usage_pct = int(round(100 * (used_bytes / total_bytes)))
+        _, _, _, current_disk_usage_pct = get_disk_usage()
         deleted_enough = (current_disk_usage_pct < target_disk_usage)
         if deleted_enough:
             break

@@ -57,7 +57,8 @@ from local.lib.timekeeper_utils import timestamped_log
 
 from local.lib.mongo_helpers import MCLIENT, get_camera_names_list
 
-from local.lib.data_deletion import AD_SETTINGS, get_oldest_snapshot_dt, delete_by_disk_usage, delete_by_days
+from local.lib.data_deletion import AD_SETTINGS
+from local.lib.data_deletion import get_oldest_snapshot_dt, delete_by_disk_usage, delete_by_days, get_disk_usage
 
 from local.lib.response_helpers import not_allowed_response
 
@@ -141,6 +142,9 @@ def autodelete_manual_delete_by_disk_usage(request):
     # Start timing
     t_start = perf_counter()
     
+    # Get disk usage before deletion
+    _, used_bytes_before, _, _ = get_disk_usage()
+    
     # Get data needed to delete by disk usage
     camera_names_list = camera_names_list = get_camera_names_list(MCLIENT, sort_names = True)
     _, _, max_disk_usage_pct = AD_SETTINGS.get_settings()
@@ -149,10 +153,18 @@ def autodelete_manual_delete_by_disk_usage(request):
     # Run deletion
     delete_by_disk_usage(MCLIENT, camera_names_list, oldest_data_dt, max_disk_usage_pct)
     
+    # Get disk usage after deletion for comparison
+    _, used_bytes_after, _, current_disk_usage_pct = get_disk_usage()
+    bytes_deleted = max(0, (used_bytes_before - used_bytes_after))
+    
     # End timing
     t_end = perf_counter()
     time_taken_ms = int(round(1000 * (t_end - t_start)))
-    return_result = {"time_taken_ms": time_taken_ms}
+    return_result = {"used_bytes_before": used_bytes_before,
+                     "used_bytes_after": used_bytes_after,
+                     "bytes_deleted": bytes_deleted,
+                     "percent_usage": current_disk_usage_pct,
+                     "time_taken_ms": time_taken_ms}
     
     return UJSONResponse(return_result)
 
@@ -172,6 +184,9 @@ def autodelete_manual_delete_by_days_to_keep(request):
     # Start timing
     t_start = perf_counter()
     
+    # Get disk usage before deletion
+    _, used_bytes_before, _, _ = get_disk_usage()
+    
     # Get data needed to delete by days to keep
     camera_names_list = camera_names_list = get_camera_names_list(MCLIENT)
     _, days_to_keep, _ = AD_SETTINGS.get_settings()
@@ -180,10 +195,18 @@ def autodelete_manual_delete_by_days_to_keep(request):
     # Run deletion
     delete_by_days(MCLIENT, camera_names_list, oldest_data_dt, days_to_keep)
     
+    # Get disk usage after deletion for comparison
+    _, used_bytes_after, _, current_disk_usage_pct = get_disk_usage()
+    bytes_deleted = max(0, (used_bytes_before - used_bytes_after))
+    
     # End timing
     t_end = perf_counter()
     time_taken_ms = int(round(1000 * (t_end - t_start)))
-    return_result = {"time_taken_ms": time_taken_ms}
+    return_result = {"used_bytes_before": used_bytes_before,
+                     "used_bytes_after": used_bytes_after,
+                     "bytes_deleted": bytes_deleted,
+                     "percent_usage": current_disk_usage_pct,
+                     "time_taken_ms": time_taken_ms}
     
     return UJSONResponse(return_result)
 
