@@ -220,9 +220,10 @@ def delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_m
     # Send deletion command to the db
     filter_dict = {epoch_ms_field: {"$lt": oldest_allowed_ems}}
     delete_response = collection_ref.delete_many(filter_dict)
+    delete_response_dict = dict(delete_response)
     
     # Get the number of deleted documents from the response (if possible!)
-    num_deleted = delete_response.get("deleted_count", None)
+    num_deleted = delete_response_dict.get("deleted_count", None)
     
     return num_deleted
 

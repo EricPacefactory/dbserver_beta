@@ -53,6 +53,8 @@ from time import perf_counter
 
 from local.lib.environment import get_env_upper_max_disk_usage_pct
 
+from local.lib.timekeeper_utils import timestamped_log
+
 from local.lib.mongo_helpers import MCLIENT, get_camera_names_list
 
 from local.lib.data_deletion import AD_SETTINGS, get_oldest_snapshot_dt, delete_by_disk_usage, delete_by_days
@@ -132,6 +134,10 @@ def autodelete_manual_delete_by_disk_usage(request):
     Most likely to be needed after updating the settings (and wanting immediate deletion update)
     '''
     
+    # Some feedback, mostly for docker logs
+    delete_msg = timestamped_log("Manual 'delete-by-disk-usage'")
+    print("", delete_msg, sep = "\n", flush = True)
+    
     # Start timing
     t_start = perf_counter()
     
@@ -158,6 +164,10 @@ def autodelete_manual_delete_by_days_to_keep(request):
     Route used to manually trigger a deletion check based on the number of days to keep setting
     Most likely to be needed after updating the settings (and wanting immediate deletion update)
     '''
+    
+    # Some feedback, mostly for docker logs
+    delete_msg = timestamped_log("Manual 'delete-by-days-to-keep'")
+    print("", delete_msg, sep = "\n", flush = True)
     
     # Start timing
     t_start = perf_counter()
