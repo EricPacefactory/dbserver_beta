@@ -51,7 +51,8 @@ find_path_to_local()
 
 from local.lib.mongo_helpers import MCLIENT, post_many_to_mongo, check_collection_indexing, set_collection_indexing
 from local.lib.response_helpers import post_success_response, not_allowed_response, bad_request_response
-from local.lib.image_pathing import build_base_image_pathing, build_image_pathing
+
+from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_image_pathing
 
 from starlette.routing import Route
 
@@ -94,7 +95,7 @@ async def post_image_data_by_collection(request, collection_name):
     image_epoch_ms = request.path_params["epoch_ms"]
     
     # Generate the image file pathing, so we can first make sure the image doesn't already exist
-    image_save_path = build_image_pathing(IMAGE_FOLDER, camera_select, collection_name, image_epoch_ms,
+    image_save_path = build_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, collection_name, image_epoch_ms,
                                           create_folder_if_missing = True)
     
     # Return error if the image file has already been stored
@@ -274,9 +275,8 @@ def build_posting_routes():
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
 
-# Establish (global!) variable used to access the persistent image folder
-IMAGE_FOLDER = build_base_image_pathing()
-
+# Nothing!
+    
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Demo

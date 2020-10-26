@@ -1,9 +1,9 @@
 
 # Project files
-images_dbserver/
+volume/
 
 # Cache files
-*.pyc
+**.pyc
 __pycache__
 
 # Large files (ex. videos and images)

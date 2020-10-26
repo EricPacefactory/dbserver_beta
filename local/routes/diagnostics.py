@@ -56,7 +56,7 @@ from subprocess import check_output
 from local.lib.mongo_helpers import MCLIENT
 from local.lib.mongo_helpers import get_collection_names_list, get_camera_names_list
 
-from local.lib.image_pathing import build_base_image_pathing
+from local.lib.pathing import BASE_DATA_FOLDER_PATH
 from local.lib.response_helpers import calculate_time_taken_ms
 
 from starlette.responses import UJSONResponse
@@ -213,9 +213,8 @@ def get_disk_usage_for_images(request):
     # Start timing
     t_start = perf_counter()
     
-    # Find the (full-drive) usage of the partition holding the image data
-    base_image_path = build_base_image_pathing()
-    total_bytes, used_bytes, free_bytes = disk_usage(base_image_path)
+    # Find the disk usage of the partition holding the file system data
+    total_bytes, used_bytes, free_bytes = disk_usage(BASE_DATA_FOLDER_PATH)
     
     # Calculate a simple 'human-readable' value for output
     percent_usage = int(round(100 * used_bytes / total_bytes))
@@ -229,7 +228,7 @@ def get_disk_usage_for_images(request):
                      "used_bytes": used_bytes,
                      "free_bytes": free_bytes,
                      "percent_usage": percent_usage,
-                     "note": "Usage for drive containing images only! May not account for metadata storage",
+                     "note": "Usage for drive containing file system data only! May not account for metadata storage",
                      "time_taken_ms": time_taken_ms}
     
     return UJSONResponse(return_result)

@@ -51,6 +51,7 @@ find_path_to_local()
 
 from time import perf_counter
 from shutil import rmtree
+from subprocess import check_output
 
 from local.lib.mongo_helpers import MCLIENT, check_mongo_connection
 from local.lib.mongo_helpers import remove_camera_entry, get_camera_names_list
@@ -59,7 +60,7 @@ from local.lib.timekeeper_utils import get_local_datetime
 from local.lib.timekeeper_utils import datetime_to_isoformat_string, datetime_to_epoch_ms
 from local.lib.timekeeper_utils import epoch_ms_to_local_isoformat, isoformat_to_epoch_ms
 
-from local.lib.image_pathing import build_base_image_pathing, build_camera_image_path
+from local.lib.pathing import BASE_DATA_FOLDER_PATH, BASE_CAMERAS_FOLDER_PATH, GIT_READER, build_camera_data_path
 from local.lib.response_helpers import bad_request_response, not_allowed_response, calculate_time_taken_ms
 
 from starlette.responses import UJSONResponse, HTMLResponse
@@ -100,6 +101,45 @@ def check_for_sanity(sanity_check):
     return passed_sanity_check
 
 # .....................................................................................................................
+
+def check_git_version():
+    
+    check_output(timeout=0.25)
+    
+    return
+
+# .....................................................................................................................
+
+def check_dbserver_version():
+    
+    # Initialize output in case of errors
+    is_valid = False
+    version_indicator_str = "unknown"
+    commit_date_str = "unknown"
+    
+    # Try to get versioning info    
+    try:
+        commit_id, commit_tags_list, commit_dt = GIT_READER.get_current_commit()
+        
+        # Use tag if possible to represent the version
+        version_indicator_str = ""
+        if len(commit_tags_list) > 0:
+            version_indicator_str = ", ".join(commit_tags_list)
+        else:
+            version_indicator_str = commit_id
+        
+        # Add time information
+        commit_date_str = commit_dt.strftime("%b %d")
+        
+        # If we get here, the info is probably good
+        is_valid = True
+        
+    except:
+        pass
+    
+    return is_valid, commit_date_str, version_indicator_str
+
+# .....................................................................................................................
 # .....................................................................................................................
 
 
@@ -112,11 +152,15 @@ def root_page(request):
     
     ''' Home page route. Meant to provide (rough) UI to inspect available data '''
     
-    # Request camera (database) names
-    camera_names_list = get_camera_names_list(MCLIENT)
+    # For convenience
+    indent_by_2 = lambda message: "  {}".format(message)
+    indent_by_4 = lambda message: indent_by_2(indent_by_2(message))
     
-    # Build html line by line for each camera to show some sample data
-    html_list = ["<title>DB Server</title>", "<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"]
+    # Request camera (database) names
+    camera_names_list = get_camera_names_list(MCLIENT, sort_names = True)
+    
+    # Build html for each camera to show some sample data
+    cam_html_list = []
     for each_camera_name in camera_names_list:
         pretty_camera_name = each_camera_name.replace("_", " ")
         caminfo_url = "/{}/camerainfo/get-newest-metadata".format(each_camera_name)
@@ -127,14 +171,34 @@ def root_page(request):
         caminfo_link_html = "<a href='{}'>{}</a>".format(caminfo_url, pretty_camera_name)
         cgfinfo_link_html = "<a href='{}'>config</a>".format(cfginfo_url)
         camera_html = "<h3>{} ({})</h3>".format(caminfo_link_html, cgfinfo_link_html)
-        html_list += [camera_html, img_html, "<br><br>"]
+        cam_html_list += ["{}".format(camera_html),
+                          indent_by_4(img_html),
+                          indent_by_4("<br><br>")]
     
     # In special case of no cameras, include text to indicate it!
     no_cameras = (len(camera_names_list) == 0)
     if no_cameras:
-        html_list += ["<h4>No camera data!</h4>"]
+        cam_html_list += ["<h4>No camera data!</h4>"]
+    
+    # Add dbserver versioning info
+    version_is_valid, version_date_str, version_id_str = check_dbserver_version()
+    bad_version_entry = "<p>error getting dbserver version!</p>"
+    good_version_entry = "<p>dbserver version: {} ({})</p>".format(version_id_str, version_date_str)
+    dbserver_version_str = (good_version_entry if version_is_valid else bad_version_entry)
     
     # Finally build the full html string to output
+    html_list = ["<!DOCTYPE html>",
+                 "<html>",
+                 "<head>",
+                 indent_by_2("<title>DB Server</title>"),
+                 indent_by_2("<link rel='icon' href='data:;base64,iVBORw0KGgo='>"),
+                 "</head>",
+                 "<body>",
+                 indent_by_2("<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"),
+                 *(indent_by_2(each_cam_str) for each_cam_str in cam_html_list),
+                 indent_by_2(dbserver_version_str),
+                 "</body>",
+                 "</html>"]
     html_resp = "\n".join(html_list)
     
     return HTMLResponse(html_resp)
@@ -151,7 +215,30 @@ def is_alive_check(request):
 
 # .....................................................................................................................
 
-def cameras_get_all_names(request):
+def get_dbserver_version(request):
+    
+    
+    ''' Route used to check the current dbserver version (based on git repo details) '''
+    
+    try:
+        commit_id, commit_tags_list, commit_dt = GIT_READER.get_current_commit()
+        isoformat_datetime = datetime_to_isoformat_string(commit_dt)
+        
+    except Exception:
+        commit_id = "error"
+        commit_tags_list = []
+        isoformat_datetime = "error"
+    
+    # Bundle results for better return
+    return_result = {"commit_id": commit_id,
+                     "tags_list": commit_tags_list,
+                     "commit_datetime_isoformat": isoformat_datetime}
+    
+    return UJSONResponse(return_result)
+
+# .....................................................................................................................
+
+def get_all_camera_names(request):
     
     ''' Route which is intended to return a list of camera names '''
     
@@ -226,24 +313,23 @@ def remove_one_camera(request):
     # Start timing
     t_start = perf_counter()
     
-    # Get image pathing
-    base_image_path = build_base_image_pathing()
-    camera_image_folder_path = build_camera_image_path(base_image_path, camera_select)
+    # Get camera (file system) data pathing
+    camera_data_folder_path = build_camera_data_path(BASE_DATA_FOLDER_PATH, camera_select)
     
     # Check if camera is in our list
     camera_names_before_list = get_camera_names_list(MCLIENT)
     camera_in_mongo_before = (camera_select in camera_names_before_list)
-    camera_in_image_storage_before = (os.path.exists(camera_image_folder_path))
+    camera_in_image_storage_before = (os.path.exists(camera_data_folder_path))
     camera_exists_before = (camera_in_mongo_before or camera_in_image_storage_before)
     
-    # Wipe out entire camera database and image folder, if possible
+    # Wipe out entire camera database and data folder, if possible
     remove_camera_entry(MCLIENT, camera_select)
-    rmtree(camera_image_folder_path, ignore_errors = True)
+    rmtree(camera_data_folder_path, ignore_errors = True)
     
     # Check if the camera has been removed
     camera_names_after_list = get_camera_names_list(MCLIENT)
     camera_in_mongo_after = (camera_select in camera_names_after_list)
-    camera_in_image_storage_after = (os.path.exists(camera_image_folder_path))
+    camera_in_image_storage_after = (os.path.exists(camera_data_folder_path))
     camera_exists_after = (camera_in_mongo_after or camera_in_image_storage_after)
     
     # End timing
@@ -279,11 +365,10 @@ def remove_all_cameras(request):
     for each_camera_name in camera_names_list:
         remove_camera_entry(MCLIENT, each_camera_name)
     
-    # Delete image folder (but re-create an empty folder)
-    base_image_path = build_base_image_pathing()
-    images_removed = os.listdir(base_image_path)
-    rmtree(base_image_path, ignore_errors = True)
-    os.makedirs(base_image_path, exist_ok = True)
+    # Delete cameras folder (but re-create an empty folder)
+    cameras_removed_list = os.listdir(BASE_CAMERAS_FOLDER_PATH)
+    rmtree(BASE_CAMERAS_FOLDER_PATH, ignore_errors = True)
+    os.makedirs(BASE_CAMERAS_FOLDER_PATH, exist_ok = True)
     
     # End timing
     t_end = perf_counter()
@@ -291,7 +376,7 @@ def remove_all_cameras(request):
     
     # Build output for feedback
     return_result = {"data_removed": camera_names_list,
-                     "images_removed": images_removed,
+                     "cameras_removed": cameras_removed_list,
                      "time_taken_ms": time_taken_ms}
     
     return UJSONResponse(return_result)
@@ -393,7 +478,8 @@ def build_misc_routes():
     [
      Route("/", root_page),
      Route("/is-alive", is_alive_check),
-     Route("/get-all-camera-names", cameras_get_all_names),
+     Route("/get-dbserver-version", get_dbserver_version),
+     Route("/get-all-camera-names", get_all_camera_names),
      Route("/time/ems-to-isoformat/{epoch_ms:int}", time_epoch_ms_to_datetime_isoformat),
      Route("/time/isoformat-to-ems/{datetime_isoformat:str}", time_datetime_isoformat_to_epoch_ms),
      Route("/remove/one-camera/{camera_select:str}/{sanity_check}", remove_one_camera),

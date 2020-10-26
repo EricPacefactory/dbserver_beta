@@ -101,6 +101,10 @@ def connect_to_mongo(connection_timeout_ms = 2500, max_connection_attempts = 10)
     
     ''' Helper function used to establish a conection to mongoDB '''
     
+    # Initialize outputs
+    connection_success = False
+    mongo_client = None
+    
     # For clarity
     connect_immediately = True
     log_name = "dbserver"
@@ -124,10 +128,9 @@ def connect_to_mongo(connection_timeout_ms = 2500, max_connection_attempts = 10)
     
     # Repeatedly try to connect to MongoDB
     try:
-        is_connected = False
         for k in range(max_connection_attempts):
-            is_connected, server_info = check_mongo_connection(mongo_client)
-            if is_connected:
+            connection_success, server_info = check_mongo_connection(mongo_client)
+            if connection_success:
                 break
             
             # If we get here, we didn't connect, so provide some feedback and try again
@@ -139,7 +142,7 @@ def connect_to_mongo(connection_timeout_ms = 2500, max_connection_attempts = 10)
             sleep(3)
         
         # Print additional warning indicator if we fail to connect after repeated attempts
-        if not is_connected:
+        if not connection_success:
             print("",
                   "Connection attempts to database failed!",
                   "Server will start up anyways, but requests may not work...", sep = "\n", flush = True)
@@ -148,7 +151,7 @@ def connect_to_mongo(connection_timeout_ms = 2500, max_connection_attempts = 10)
         mongo_client.close()
         ide_quit("Connection error. Quitting...")
     
-    return mongo_client
+    return connection_success, mongo_client
 
 # .....................................................................................................................
 
@@ -266,7 +269,7 @@ def set_collection_indexing(collection_ref, index_key_list):
 
 # .....................................................................................................................
 
-def get_camera_names_list(mongo_client):
+def get_camera_names_list(mongo_client, sort_names = True):
     
     ''' Helper function which gets all camera names (equiv. to database names, not including mongo built-ins) '''
     
@@ -276,6 +279,10 @@ def get_camera_names_list(mongo_client):
     # Remove built-in databases
     ignore_db_names = {"admin", "local", "config"}
     camera_names_list = [each_name for each_name in all_db_names_list if each_name not in ignore_db_names]
+    
+    # Sort if needed
+    if sort_names:
+        camera_names_list = sorted(camera_names_list)
     
     return camera_names_list
 
@@ -303,8 +310,11 @@ def remove_camera_entry(mongo_client, camera_select):
 #%% Setup initial (shared) connection
 
 # Import from other scripts (e.g. routes) to access mongo!
-MCLIENT = connect_to_mongo()
+_, MCLIENT = connect_to_mongo()
 #print("DEBUG: MongoClient created!")
+
+# Set up git usage
+
 
 
 # ---------------------------------------------------------------------------------------------------------------------

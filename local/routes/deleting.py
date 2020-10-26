@@ -52,8 +52,8 @@ find_path_to_local()
 from time import perf_counter
 from shutil import rmtree
 
-from local.lib.image_pathing import build_base_image_pathing
-from local.lib.image_pathing import get_old_snapshot_image_folders_list, get_old_background_image_folders_list
+from local.lib.pathing import BASE_DATA_FOLDER_PATH
+from local.lib.pathing import get_old_snapshot_image_folders_list, get_old_background_image_folders_list
 
 from local.lib.mongo_helpers import MCLIENT
 from local.lib.timekeeper_utils import epoch_ms_to_local_isoformat
@@ -222,7 +222,8 @@ def delete_backgrounds_by_cutoff(request):
     delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
     
     # Get list of all folder paths that hold data older than the allowable time
-    old_image_folder_paths = get_old_background_image_folders_list(IMAGE_FOLDER, camera_select, oldest_allowed_ems)
+    old_image_folder_paths = get_old_background_image_folders_list(BASE_DATA_FOLDER_PATH,
+                                                                   camera_select, oldest_allowed_ems)
     
     # Delete all the folders containing old background images
     for each_folder_path in old_image_folder_paths:
@@ -332,7 +333,8 @@ def delete_snapshots_by_cutoff(request):
     delete_response, _ = _delete_collection_by_target_time(collection_ref, oldest_allowed_ems, epoch_ms_field)
     
     # Get list of all folder paths that hold data older than the allowable time
-    old_image_folder_paths = get_old_snapshot_image_folders_list(IMAGE_FOLDER, camera_select, oldest_allowed_ems)
+    old_image_folder_paths = get_old_snapshot_image_folders_list(BASE_DATA_FOLDER_PATH,
+                                                                 camera_select, oldest_allowed_ems)
     
     # Delete all the folders containing old snapshot images
     for each_folder_path in old_image_folder_paths:
@@ -465,9 +467,6 @@ def build_deleting_routes():
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
-
-# Establish (global!) variable used to access the persistent image folder
-IMAGE_FOLDER = build_base_image_pathing()
 
 # Hard-code (global!) variable used to indicate timing field
 DEFAULT_EMS_FIELD = "_id"
