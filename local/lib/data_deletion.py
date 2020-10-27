@@ -61,7 +61,7 @@ from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_camera_data_path
 from local.lib.pathing import build_system_configs_folder_path, build_system_logs_folder_path
 from local.lib.pathing import get_old_snapshot_image_folders_list, get_old_background_image_folders_list
 
-from local.lib.environment import get_env_upper_max_disk_usage_pct, get_env_hour_to_run
+from local.lib.environment import get_env_autodelete_on_startup, get_env_hour_to_run, get_env_upper_max_disk_usage_pct
 from local.lib.environment import get_default_max_disk_usage_pct, get_default_days_to_keep
 
 from local.lib.mongo_helpers import connect_to_mongo, get_camera_names_list, remove_camera_entry
@@ -153,6 +153,14 @@ class Autodelete_Settings:
         save_config_json(self.settings_file_path, settings_dict)
         
         return settings_dict
+    
+    # .................................................................................................................
+    
+    def get_run_on_startup_setting(self):
+        
+        ''' Helper function which reports auto-delete on startup setting (avoids other callers handling env) '''
+        
+        return get_env_autodelete_on_startup()
     
     # .................................................................................................................
     
@@ -625,6 +633,48 @@ def delete_by_days(mongo_client, camera_names_list, oldest_data_dt, days_to_keep
 
 # .....................................................................................................................
 
+def delete_all(mongo_client_connection_config, logger_ref):
+    
+    ''' Helper function which combines other delete functions, intended for handling auto-deletion '''
+    
+    # Get connection to mongo (or bail on failure)
+    connection_success, mongo_client = connect_to_mongo(**mongo_client_connection_config)
+    if not connection_success:
+        logger_ref.log("MongoDB connection failure")
+        return
+    
+    # Get deletion settings & camera listing
+    days_to_keep, max_disk_usage_pct = AD_SETTINGS.get_settings()
+    camera_names_list = get_camera_names_list(mongo_client)
+    
+    # Get the oldest snapshot timing, since we'll use this as a staring point for deleting data
+    oldest_data_dt, empty_camera_names_list = get_oldest_snapshot_dt(camera_names_list)
+    
+    # Delete camera entries with no data if needed
+    empty_cameras_to_delete = (len(empty_camera_names_list) > 0)
+    if empty_cameras_to_delete:
+        delete_empty_cameras(mongo_client, empty_camera_names_list)
+        camera_names_list = sorted(list(set(camera_names_list).difference(empty_camera_names_list)))
+        logger_ref.log_list(["Deleted empty cameras:", *empty_camera_names_list])
+    
+    # Delete data by a max disk usage setting as well as a specified number of 'days to keep'
+    shared_args = (mongo_client, camera_names_list, oldest_data_dt)
+    mdu_results_list = delete_by_disk_usage(*shared_args, max_disk_usage_pct)
+    dtk_results_list = delete_by_days(*shared_args, days_to_keep)
+    
+    # Print or log response
+    logger_ref.log_list(["Realtime data deletion results",
+                         "Max disk usage:", *mdu_results_list,
+                         "",
+                         "Days to keep:", *dtk_results_list])
+    
+    # Close mongo connection
+    mongo_client.close()
+    
+    return
+
+# .....................................................................................................................
+
 def scheduled_delete(mongo_client, shutdown_event, log_to_file = True):
     
     '''
@@ -641,8 +691,12 @@ def scheduled_delete(mongo_client, shutdown_event, log_to_file = True):
     mongo_client_connection_config = {"connection_timeout_ms": 30000,
                                       "max_connection_attempts": 30}
     
-    try:
+    # Handle start-up deletion, if needed
+    autodelete_on_startup = AD_SETTINGS.get_run_on_startup_setting()
+    if autodelete_on_startup:
+        delete_all(mongo_client_connection_config, logger)
     
+    try:
         # Sleep & delete & sleep & delete & sleep & ...
         while True:
             
@@ -660,39 +714,8 @@ def scheduled_delete(mongo_client, shutdown_event, log_to_file = True):
                 logger.log("Shutdown event!")
                 break
             
-            # Get connection to mongo
-            connection_success, mongo_client = connect_to_mongo(**mongo_client_connection_config)
-            if not connection_success:
-                logger.log("MongoDB connection failure")
-                continue
-            
-            # Get deletion settings & camera listing
-            days_to_keep, max_disk_usage_pct = AD_SETTINGS.get_settings()
-            camera_names_list = get_camera_names_list(mongo_client)
-            
-            # Get the oldest snapshot timing, since we'll use this as a staring point for deleting data
-            oldest_data_dt, empty_camera_names_list = get_oldest_snapshot_dt(camera_names_list)
-            
-            # Delete camera entries with no data if needed
-            empty_cameras_to_delete = (len(empty_camera_names_list) > 0)
-            if empty_cameras_to_delete:
-                delete_empty_cameras(mongo_client, empty_camera_names_list)
-                camera_names_list = sorted(list(set(camera_names_list).difference(empty_camera_names_list)))
-                logger.log_list(["Deleted empty cameras:", *empty_camera_names_list])
-            
-            # Delete data by a max disk usage setting as well as a specified number of 'days to keep'
-            shared_args = (mongo_client, camera_names_list, oldest_data_dt)
-            mdu_results_list = delete_by_disk_usage(*shared_args, max_disk_usage_pct)
-            dtk_results_list = delete_by_days(*shared_args, days_to_keep)
-            
-            # Print or log response
-            logger.log_list(["Realtime data deletion results",
-                             "Max disk usage:", *mdu_results_list,
-                             "",
-                             "Days to keep:", *dtk_results_list])
-            
-            # Close mongo connection
-            mongo_client.close()
+            # Handle autodelete of data
+            delete_all(mongo_client_connection_config, logger)
         
     except KeyboardInterrupt:
         logger.log("Keyboard interrupt!")    

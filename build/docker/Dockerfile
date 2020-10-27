@@ -36,6 +36,7 @@ ENV DBSERVER_HOST                   0.0.0.0
 ENV DBSERVER_PORT                   8050
 
 # Set up autodelete config
+ENV DELETE_ON_STARTUP               0
 ENV HOUR_TO_RUN                     1
 ENV UPPER_DISK_USAGE_PCT            85
 ENV MAX_DISK_USAGE_PCT              70

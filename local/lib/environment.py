@@ -116,6 +116,11 @@ def get_dbserver_port():
 
 # .....................................................................................................................
 
+def get_env_autodelete_on_startup():
+    return bool(int(os.environ.get("DELETE_ON_STARTUP", 0)))
+
+# .....................................................................................................................
+
 def get_env_hour_to_run():
     return int(os.environ.get("HOUR_TO_RUN", 1))
 
