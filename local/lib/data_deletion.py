@@ -355,9 +355,9 @@ def get_oldest_snapshot_dt(camera_names_list):
         # Keep track of cameras that don't have old snapshot data (should be deleted!)
         if no_oldest_metadata:
             empty_camera_names_list.append(each_camera_name)
+            continue
         
-        # Try to retrieve the oldest epoch ms value, otherwise use the current value
-        # --> will happen in 'no metadata case' for example
+        # Retrieve the oldest epoch ms value
         each_old_snap_ems = oldest_metadata_dict.get("epoch_ms", current_ems)
         oldest_snap_ems_list.append(each_old_snap_ems)
     
