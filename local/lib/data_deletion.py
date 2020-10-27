@@ -69,7 +69,7 @@ from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_
 
 from local.lib.timekeeper_utils import datetime_to_epoch_ms, datetime_convert_to_day_start, epoch_ms_to_local_datetime
 from local.lib.timekeeper_utils import get_local_datetime, get_local_datetime_tomorrow, get_local_datetime_in_past
-from local.lib.timekeeper_utils import get_seconds_between_datetimes, add_to_datetime
+from local.lib.timekeeper_utils import get_seconds_between_datetimes, add_to_datetime, datetime_to_human_readable_string
 
 from local.routes.camerainfo import get_camera_info_collection
 from local.routes.configinfo import get_config_info_collection
@@ -694,6 +694,7 @@ def scheduled_delete(mongo_client, shutdown_event, log_to_file = True):
     # Handle start-up deletion, if needed
     autodelete_on_startup = AD_SETTINGS.get_run_on_startup_setting()
     if autodelete_on_startup:
+        logger.log("Deleting on startup!")
         delete_all(mongo_client_connection_config, logger)
     
     try:
@@ -705,6 +706,10 @@ def scheduled_delete(mongo_client, shutdown_event, log_to_file = True):
             deletion_minute = int(round(59 * unit_random()))
             deletion_second = int(round(59 * unit_random()))
             deletion_dt = get_local_datetime_tomorrow(deletion_hour, deletion_minute, deletion_second)
+            
+            # Report deletion time
+            human_readable_deletion_datetime = datetime_to_human_readable_string(deletion_dt)
+            logger.log("Scheduled delete: {}".format(human_readable_deletion_datetime))
             
             # Delay deletion until 'tomorrow' unless we're told to shutdown before then
             dt_now = get_local_datetime()
