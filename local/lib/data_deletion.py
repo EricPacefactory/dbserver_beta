@@ -156,6 +156,22 @@ class Autodelete_Settings:
     
     # .................................................................................................................
     
+    def get_hour_to_run(self):
+        
+        ''' Helper function which reports auto-delete hour to run (avoids other callers having to handle env calls) '''
+        
+        return get_env_hour_to_run()
+    
+    # .................................................................................................................
+    
+    def get_upper_max_disk_usage_percent(self):
+        
+        ''' Helper function which reports auto-delete max disk usage (avoids others having to handle env calls) '''
+        
+        return get_env_upper_max_disk_usage_pct()
+    
+    # .................................................................................................................
+    
     def get_settings(self):
         
         # First get default values, in case values are missing
@@ -169,10 +185,7 @@ class Autodelete_Settings:
         days_to_keep = settings_dict.get(self.days_to_keep_key, default_days_to_keep)
         max_disk_usage_pct = settings_dict.get(self.max_disk_usage_key, default_max_disk_usage_pct)
         
-        # Also grab the hour to run from the environment, for reporting purposes
-        hour_to_run = get_env_hour_to_run()
-        
-        return hour_to_run, days_to_keep, max_disk_usage_pct
+        return days_to_keep, max_disk_usage_pct
     
     # .................................................................................................................
     
@@ -192,7 +205,7 @@ class Autodelete_Settings:
     def set_max_disk_usage_pct(self, new_max_disk_usage_pct):
         
         # Make sure new value is valid
-        upper_allowable_usage_pct = get_env_upper_max_disk_usage_pct()
+        upper_allowable_usage_pct = self.get_upper_max_disk_usage_percent()
         is_valid = (1 < new_max_disk_usage_pct < upper_allowable_usage_pct)
         
         # Save new settings if valid
@@ -634,7 +647,7 @@ def scheduled_delete(mongo_client, shutdown_event, log_to_file = True):
         while True:
             
             # Generate a new (slightly random) time for the next deletion
-            deletion_hour = get_env_hour_to_run()
+            deletion_hour = AD_SETTINGS.get_hour_to_run()
             deletion_minute = int(round(59 * unit_random()))
             deletion_second = int(round(59 * unit_random()))
             deletion_dt = get_local_datetime_tomorrow(deletion_hour, deletion_minute, deletion_second)

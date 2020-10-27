@@ -51,8 +51,6 @@ find_path_to_local()
 
 from time import perf_counter
 
-from local.lib.environment import get_env_upper_max_disk_usage_pct
-
 from local.lib.timekeeper_utils import timestamped_log
 
 from local.lib.mongo_helpers import MCLIENT, get_camera_names_list
@@ -73,8 +71,11 @@ from starlette.routing import Route
 
 def autodelete_get_settings(request):
     
+    # Get the hour to run, just out of interest
+    hour_to_run = AD_SETTINGS.get_hour_to_run()
+    
     # Read current autodelete settings
-    hour_to_run, days_to_keep, max_disk_usage_pct = AD_SETTINGS.get_settings()
+    days_to_keep, max_disk_usage_pct = AD_SETTINGS.get_settings()
     return_response = {"hour_to_run": hour_to_run,
                        "days_to_keep": days_to_keep,
                        "max_disk_usage_pct": max_disk_usage_pct}
@@ -89,7 +90,7 @@ def autodelete_set_max_disk_usage_pct(request):
     max_usage_pct = request.path_params["max_usage_pct"]
     
     # Don't allow disk usage above a given system maximum
-    system_upper_max_usage_pct = get_env_upper_max_disk_usage_pct()
+    system_upper_max_usage_pct = AD_SETTINGS.get_upper_max_disk_usage_percent()
     if max_usage_pct > system_upper_max_usage_pct:
         error_message = "Not allowed to set max disk usage above {}%".format(system_upper_max_usage_pct)
         return not_allowed_response(error_message)
@@ -147,7 +148,7 @@ def autodelete_manual_delete_by_disk_usage(request):
     
     # Get data needed to delete by disk usage
     camera_names_list = camera_names_list = get_camera_names_list(MCLIENT, sort_names = True)
-    _, _, max_disk_usage_pct = AD_SETTINGS.get_settings()
+    _, max_disk_usage_pct = AD_SETTINGS.get_settings()
     oldest_data_dt, _ = get_oldest_snapshot_dt(camera_names_list)
     
     # Run deletion
@@ -189,7 +190,7 @@ def autodelete_manual_delete_by_days_to_keep(request):
     
     # Get data needed to delete by days to keep
     camera_names_list = camera_names_list = get_camera_names_list(MCLIENT)
-    _, days_to_keep, _ = AD_SETTINGS.get_settings()
+    days_to_keep, _ = AD_SETTINGS.get_settings()
     oldest_data_dt, _ = get_oldest_snapshot_dt(camera_names_list)
     
     # Run deletion
