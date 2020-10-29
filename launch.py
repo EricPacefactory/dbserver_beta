@@ -20,7 +20,6 @@ from local.lib.data_deletion import AD_SHUTDOWN_EVENT, create_parallel_scheduled
 
 from local.routes.posting import build_posting_routes
 from local.routes.deleting import build_deleting_routes
-from local.routes.logging import build_logging_routes
 from local.routes.misc import build_help_route, build_misc_routes
 from local.routes.diagnostics import build_diagnostics_routes
 from local.routes.uinotes import build_uinotes_routes
@@ -34,6 +33,7 @@ from local.routes.stations import build_station_routes
 from local.routes.snapshots import build_snapshot_routes
 from local.routes.websockets import build_websocket_routes
 from local.routes.autodelete import build_autodeleting_routes
+from local.routes.forward_compatibility import build_compatibility_routes
 
 from local.lib.environment import get_debugmode, get_dbserver_protocol, get_dbserver_host, get_dbserver_port
 from local.lib.timekeeper_utils import timestamped_log
@@ -70,7 +70,7 @@ def build_all_routes():
     all_routes_dict["POSTing"] = build_posting_routes()
     all_routes_dict["Deleting"] = build_deleting_routes()
     all_routes_dict["Autodelete"] = build_autodeleting_routes()
-    all_routes_dict["Server Logs"] = build_logging_routes()
+    all_routes_dict["Forward Compatibility"] = build_compatibility_routes()
     
     # Convert to a list of routes for use in starlette init
     all_routes_list = []
@@ -80,7 +80,7 @@ def build_all_routes():
     # Build the help route using all routing info
     help_route = build_help_route(all_routes_dict)
     all_routes_list += [help_route]
-
+    
     return all_routes_list
 
 # .....................................................................................................................

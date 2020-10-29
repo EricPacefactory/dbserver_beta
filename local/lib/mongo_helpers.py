@@ -303,6 +303,14 @@ def remove_camera_entry(mongo_client, camera_select):
     return mongo_client.drop_database(camera_select)
 
 # .....................................................................................................................
+
+def remove_camera_collection(mongo_client, camera_select, collection_name):
+    
+    ''' Helper function which completely removes a collection for a given camera '''
+    
+    return mongo_client[camera_select][collection_name].drop()
+
+# .....................................................................................................................
 # .....................................................................................................................
 
 
