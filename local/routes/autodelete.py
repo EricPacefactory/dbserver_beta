@@ -81,7 +81,7 @@ def autodelete_check_system_logs(request):
     
     # Go through each log file and try to retrieve the contents
     log_files_dict = OrderedDict()
-    for each_log_file_path in log_file_paths_list:
+    for each_log_file_path in reversed(log_file_paths_list):
         
         try:
             # Read the contents of each log file we found
