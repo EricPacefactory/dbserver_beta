@@ -50,12 +50,13 @@ find_path_to_local()
 #%% Imports
 
 from time import perf_counter
+from collections import OrderedDict
 
 from local.lib.timekeeper_utils import timestamped_log
 
 from local.lib.mongo_helpers import MCLIENT, get_camera_names_list
 
-from local.lib.data_deletion import AD_SETTINGS
+from local.lib.data_deletion import AD_SETTINGS, build_autodelete_log_folder_path
 from local.lib.data_deletion import get_oldest_snapshot_dt, delete_by_disk_usage, delete_by_days, get_disk_usage
 
 from local.lib.response_helpers import not_allowed_response
@@ -69,7 +70,38 @@ from starlette.routing import Route
 
 # .....................................................................................................................
 
+def autodelete_check_system_logs(request):
+    
+    ''' Route used to present system logs (from dbserver filesystem) on browser for remote viewing '''
+    
+    # Get pathing to system logs
+    logging_folder_path = build_autodelete_log_folder_path()
+    autodelete_log_files_list = sorted(os.listdir(logging_folder_path))
+    log_file_paths_list = [os.path.join(logging_folder_path, each_file) for each_file in autodelete_log_files_list]
+    
+    # Go through each log file and try to retrieve the contents
+    log_files_dict = OrderedDict()
+    for each_log_file_path in log_file_paths_list:
+        
+        try:
+            # Read the contents of each log file we found
+            with open(each_log_file_path, "r") as in_file:
+                full_log_file_str = in_file.read()
+                
+        except Exception:
+            full_log_file_str = "error reading log file!"
+        
+        # Store log file results, line-by-line, in a JSON-friendly format, indexed by the log file name
+        each_log_file_name, _ = os.path.splitext(os.path.basename(each_log_file_path))
+        log_files_dict[each_log_file_name] = full_log_file_str.splitlines()
+    
+    return UJSONResponse(log_files_dict)
+
+# .....................................................................................................................
+
 def autodelete_get_settings(request):
+    
+    ''' Route used to check current autodelete settings '''
     
     # Get the hour to run, just out of interest
     hour_to_run = AD_SETTINGS.get_hour_to_run()
@@ -85,6 +117,8 @@ def autodelete_get_settings(request):
 # .....................................................................................................................
 
 def autodelete_set_max_disk_usage_pct(request):
+    
+    ''' Route used to alter the autodelete max disk usage percentage setting '''
     
     # Get information from route url
     max_usage_pct = request.path_params["max_usage_pct"]
@@ -108,6 +142,8 @@ def autodelete_set_max_disk_usage_pct(request):
 # .....................................................................................................................
 
 def autodelete_set_days_to_keep(request):
+    
+    ''' Route used to alter the autodelete 'days to keep' setting '''
     
     # Get information from route url
     days_to_keep = request.path_params["days_to_keep"]
@@ -147,7 +183,7 @@ def autodelete_manual_delete_by_disk_usage(request):
     _, used_bytes_before, _, _ = get_disk_usage()
     
     # Get data needed to delete by disk usage
-    camera_names_list = camera_names_list = get_camera_names_list(MCLIENT, sort_names = True)
+    camera_names_list = get_camera_names_list(MCLIENT, sort_names = True)
     _, max_disk_usage_pct = AD_SETTINGS.get_settings()
     oldest_data_dt, _ = get_oldest_snapshot_dt(camera_names_list)
     
@@ -227,6 +263,9 @@ def build_autodeleting_routes():
     url = lambda *url_components: "/".join(["/{}".format(route_group), *url_components])
     autodelete_routes = \
     [
+     Route(url("check-system-logs"),
+           autodelete_check_system_logs),
+     
      Route(url("get-settings"),
            autodelete_get_settings),
      

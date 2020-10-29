@@ -234,6 +234,14 @@ class Autodelete_Settings:
 
 # .....................................................................................................................
 
+def build_autodelete_log_folder_path():
+    
+    ''' Helper function which builds path to system folder for storing autodelete logs '''
+    
+    return build_system_logs_folder_path(BASE_DATA_FOLDER_PATH, "autodelete")
+
+# .....................................................................................................................
+
 def get_disk_usage():
     
     '''
@@ -318,7 +326,7 @@ def create_autodelete_logger(enabled = True):
     
     ''' Helper function to create a logger for autodeletion results '''
     
-    logging_folder_path = build_system_logs_folder_path(BASE_DATA_FOLDER_PATH, "autodelete")
+    logging_folder_path = build_autodelete_log_folder_path()
     logger = Daily_Logger(logging_folder_path, log_files_to_keep = 10, enabled = enabled, include_timestamp = True)
     
     return logger
@@ -655,7 +663,7 @@ def delete_all(mongo_client_connection_config, logger_ref):
     if empty_cameras_to_delete:
         delete_empty_cameras(mongo_client, empty_camera_names_list)
         camera_names_list = sorted(list(set(camera_names_list).difference(empty_camera_names_list)))
-        logger_ref.log_list(["Deleted empty cameras:", *empty_camera_names_list])
+        logger_ref.log_list(["Deleted empty camera(s):", *empty_camera_names_list])
     
     # Delete data by a max disk usage setting as well as a specified number of 'days to keep'
     shared_args = (mongo_client, camera_names_list, oldest_data_dt)
@@ -663,7 +671,7 @@ def delete_all(mongo_client_connection_config, logger_ref):
     dtk_results_list = delete_by_days(*shared_args, days_to_keep)
     
     # Print or log response
-    logger_ref.log_list(["Realtime data deletion results",
+    logger_ref.log_list(["Data deletion timing diagnostics",
                          "Max disk usage:", *mdu_results_list,
                          "",
                          "Days to keep:", *dtk_results_list])
