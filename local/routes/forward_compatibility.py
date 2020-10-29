@@ -65,7 +65,7 @@ from starlette.routing import Route
 # .....................................................................................................................
 
 def move_folders_recursively(source_folder_path, destination_folder_path,
-                             debug_mode = True, _indent = ""):
+                             debug_mode = False, _indent = ""):
     
     ''' Wrapper around using shutil.move function, but works in cases where original folder already exists! '''
     
