@@ -19,7 +19,6 @@ from local.lib.mongo_helpers import MCLIENT
 from local.lib.data_deletion import AD_SHUTDOWN_EVENT, create_parallel_scheduled_delete
 
 from local.routes.posting import build_posting_routes
-from local.routes.deleting import build_deleting_routes
 from local.routes.misc import build_help_route, build_misc_routes
 from local.routes.diagnostics import build_diagnostics_routes
 from local.routes.uinotes import build_uinotes_routes
@@ -68,7 +67,6 @@ def build_all_routes():
     all_routes_dict["Stations"] = build_station_routes()
     all_routes_dict["Websockets"] = build_websocket_routes()
     all_routes_dict["POSTing"] = build_posting_routes()
-    all_routes_dict["Deleting"] = build_deleting_routes()
     all_routes_dict["Autodelete"] = build_autodeleting_routes()
     all_routes_dict["Forward Compatibility"] = build_compatibility_routes()
     
