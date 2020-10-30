@@ -60,7 +60,7 @@ from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_i
 
 from local.lib.response_helpers import no_data_response, bad_request_response
 
-from local.lib.image_pathing import build_base_image_pathing, build_background_image_pathing
+from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_background_image_pathing
 
 from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse
 from starlette.routing import Route
@@ -87,7 +87,7 @@ def bg_get_newest_image(request):
     
     # Build pathing to the file
     newest_ems = metadata_dict[EPOCH_MS_FIELD]
-    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, newest_ems)
+    image_load_path = build_background_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, newest_ems)
     if not os.path.exists(image_load_path):
         error_message = "No image at {}".format(newest_ems)
         return no_data_response(error_message)
@@ -103,7 +103,7 @@ def bg_get_one_image(request):
     target_ems = request.path_params["epoch_ms"]
     
     # Build pathing to the file
-    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, target_ems)
+    image_load_path = build_background_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, target_ems)
     if not os.path.exists(image_load_path):
         error_message = "No image at {}".format(target_ems)
         return bad_request_response(error_message)
@@ -130,7 +130,7 @@ def bg_get_active_image(request):
     
     # Build pathing to the file & handle missing file data
     active_ems = entry_dict[EPOCH_MS_FIELD]
-    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, active_ems)
+    image_load_path = build_background_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, active_ems)
     if not os.path.exists(image_load_path):
         error_message = "No image at {}".format(active_ems)
         return bad_request_response(error_message)
@@ -146,7 +146,7 @@ def bg_get_one_b64_jpg(request):
     target_ems = request.path_params["epoch_ms"]
     
     # Build pathing to the file
-    image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, target_ems)
+    image_load_path = build_background_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, target_ems)
     if not os.path.exists(image_load_path):
         error_message = "No image at {}".format(target_ems)
         return bad_request_response(error_message)
@@ -392,9 +392,6 @@ def build_background_routes():
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
-
-# Establish (global!) variable used to access the persistent image folder
-IMAGE_FOLDER = build_base_image_pathing()
 
 # Hard-code (global!) variable used to indicate timing field
 EPOCH_MS_FIELD = "_id"

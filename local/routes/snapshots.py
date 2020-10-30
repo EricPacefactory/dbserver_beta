@@ -63,7 +63,7 @@ from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_
 
 from local.lib.response_helpers import no_data_response, bad_request_response
 from local.lib.query_helpers import first_of_query
-from local.lib.image_pathing import build_base_image_pathing, build_snapshot_image_pathing
+from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_snapshot_image_pathing
 
 from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse, StreamingResponse
 from starlette.routing import Route
@@ -92,7 +92,7 @@ def snap_get_newest_image(request):
     
     # Build pathing to the file
     newest_ems = metadata_dict[EPOCH_MS_FIELD]
-    image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, newest_ems)
+    image_load_path = build_snapshot_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, newest_ems)
     if not os.path.exists(image_load_path):
         error_message = "No image at {}".format(newest_ems)
         return no_data_response(error_message)
@@ -108,7 +108,7 @@ def snap_get_one_image(request):
     target_ems = request.path_params["epoch_ms"]
     
     # Build pathing to the file
-    image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, target_ems)
+    image_load_path = build_snapshot_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, target_ems)
     if not os.path.exists(image_load_path):
         error_message = "No image at {}".format(target_ems)
         return bad_request_response(error_message)
@@ -124,7 +124,7 @@ def snap_get_one_b64_jpg(request):
     target_ems = request.path_params["epoch_ms"]
     
     # Build pathing to the file
-    image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, target_ems)
+    image_load_path = build_snapshot_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, target_ems)
     if not os.path.exists(image_load_path):
         error_message = "No image at {}".format(target_ems)
         return bad_request_response(error_message)
@@ -157,7 +157,7 @@ def snap_get_many_images_as_tar_by_time_range(request):
     
         # Try to bundle all snapshots into a single tar file
         for each_snap_ems in epoch_ms_list:
-            image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
+            image_load_path = build_snapshot_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, each_snap_ems)
             if not os.path.exists(image_load_path):
                 error_message = "No image for epoch: {}".format(each_snap_ems)
                 return bad_request_response(error_message)
@@ -575,9 +575,6 @@ def build_snapshot_routes():
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
-
-# Establish (global!) variable used to access the persistent image folder
-IMAGE_FOLDER = build_base_image_pathing()
 
 # Hard-code (global!) variable used to indicate timing field
 EPOCH_MS_FIELD = "_id"

@@ -54,8 +54,7 @@ from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_
 
 from local.lib.response_helpers import encode_jsongz_data
 
-from local.lib.image_pathing import build_base_image_pathing
-from local.lib.image_pathing import build_snapshot_image_pathing, build_background_image_pathing
+from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_snapshot_image_pathing, build_background_image_pathing
 
 from local.routes.backgrounds import COLLECTION_NAME as BG_COLLECTION_NAME
 from local.routes.backgrounds import EPOCH_MS_FIELD as BG_EPOCH_MS_FIELD
@@ -139,7 +138,7 @@ async def backgrounds_ws_stream_many_metadata_and_images_by_time_range(ws_reques
             await ws_request.send_json(each_bg_md, mode = "binary")
             
             # Build pathing to background image file
-            image_load_path = build_background_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
+            image_load_path = build_background_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, each_snap_ems)
             if not os.path.exists(image_load_path):
                 await ws_request.send_bytes(b'')
             
@@ -210,7 +209,7 @@ async def snapshots_ws_stream_many_metadata_and_images_by_time_range_n_samples(w
             await ws_request.send_json(each_snap_md, mode = "binary")
             
             # Build pathing to snapshot image file
-            image_load_path = build_snapshot_image_pathing(IMAGE_FOLDER, camera_select, each_snap_ems)
+            image_load_path = build_snapshot_image_pathing(BASE_DATA_FOLDER_PATH, camera_select, each_snap_ems)
             if not os.path.exists(image_load_path):
                 await ws_request.send_bytes(b'')
             
@@ -374,8 +373,7 @@ def build_websocket_routes():
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Global setup
 
-# Establish (global!) variable used to access the persistent image folder
-IMAGE_FOLDER = build_base_image_pathing()
+# Nothing!
 
 
 # ---------------------------------------------------------------------------------------------------------------------

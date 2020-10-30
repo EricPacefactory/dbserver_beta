@@ -12,7 +12,7 @@ network_setting="host"
 
 # Set volume pathing
 host_volume_path="$HOME/scv2/volumes/$container_name"
-container_volume_path="/home/scv2/images_dbserver"
+container_volume_path="/home/scv2/volume"
 
 
 # -------------------------------------------------------------------------
@@ -42,7 +42,7 @@ container_restart="always"
 echo ""
 read -p "Enable container auto-restart? ([y]/n) " user_response
 case "$user_response" in
-  n|N ) echo "  --> Auto-restart disabled!"; echo ""; container_restart="no";;
+  n|N ) echo "  --> Auto-restart disabled!"; container_restart="no";;
   * ) echo "  --> Enabling auto-restart!";;
 esac
 

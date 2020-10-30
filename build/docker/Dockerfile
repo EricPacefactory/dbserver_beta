@@ -19,25 +19,35 @@ RUN python3 -m pip install --upgrade pip && \
 
 # Create a 'home' folder path to avoid storing everything in the root fs
 ENV HOME                            /home/scv2
+ENV DOCKER_IMAGE_PATH               $HOME/from_docker
+ENV DOCKER_VOLUME_PATH              $HOME/volume
 
-# Set environment variables for mongo db access
+# Set up persistent storage pathing
+ENV DBSERVER_CODE_FOLDER_PATH       $DOCKER_VOLUME_PATH/code
+ENV DBSERVER_DATA_FOLDER_PATH       $DOCKER_VOLUME_PATH/data
+
+# Set environment variables for MongoDB access
 ENV MONGO_HOST                      localhost
 ENV MONGO_PORT                      27017
 
-# Set environment variables for db server config
+# Set environment variables for dbserver config
 ENV DEBUG_MODE                      0
 ENV DBSERVER_HOST                   0.0.0.0
 ENV DBSERVER_PORT                   8050
 
-# Set image saving path (i.e. persistent storage)
-ENV DBSERVER_IMAGE_FOLDER_PATH      $HOME/images_dbserver
+# Set up autodelete config
+ENV DELETE_ON_STARTUP               0
+ENV HOUR_TO_RUN                     1
+ENV UPPER_DISK_USAGE_PCT            85
+ENV MAX_DISK_USAGE_PCT              70
+ENV DAYS_TO_KEEP                    10
 
 
 # -----------------------------------------------------------------------------
 #%% Launch!
 
 # Work with files outside of the root fs
-WORKDIR $HOME/dbserver
+WORKDIR $DOCKER_IMAGE_PATH
 
 # Move system files into the image
 COPY . .
@@ -54,5 +64,5 @@ ENTRYPOINT ["./docker_entrypoint.sh"]
 
 # From the project root directory:
 # docker build -t dbserver_image -f ./build/docker/Dockerfile .
-# docker run -d --network="host" -v /tmp/images_dbserver:/home/scv2/images_dbserver --name dbserver dbserver_image
+# docker run -d --network="host" -v /tmp/dbserver:/home/scv2/volume --name dbserver dbserver_image
 

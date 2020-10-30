@@ -200,6 +200,22 @@ def datetime_to_epoch_ms(input_datetime):
 
 # .....................................................................................................................
 
+def datetime_convert_to_day_start(input_datetime):
+    
+    ''' Function which takes in a datetime and returns a datetime as of the start of that day '''
+    
+    return input_datetime.replace(hour = 0, minute = 0, second = 0, microsecond = 0)
+
+# .....................................................................................................................
+
+def datetime_convert_to_day_end(input_datetime):
+    
+    ''' Function which takes in a datetime and returns a datetime as of the end of that day (minus 1 second) '''
+    
+    return input_datetime.replace(hour = 23, minute = 59, second = 59, microsecond = 0)
+
+# .....................................................................................................................
+
 def local_datetime_to_utc_datetime(local_datetime):
     
     ''' Convenience function for converting datetime objects from local timezones to utc '''
@@ -303,10 +319,43 @@ def timestamped_log(message):
 
 # .....................................................................................................................
 # .....................................................................................................................
-    
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Timing delta functions
+
+# .....................................................................................................................
+
+def get_seconds_between_datetimes(start_datetime, end_datetime,
+                                  round_to_int = False):
+    
+    '''
+    Function which calculates the total number of seconds between 2 datetimes
+    Note that this function can return negative values!
+    The seconds between the datetimes is calculated as (end_datetime - start_datetime)
+    '''
+    
+    # Initialize output
+    total_seconds = None
+    
+    # Calculate time difference with basic error handling
+    try:
+        time_delta = (end_datetime - start_datetime)
+        total_seconds = time_delta.total_seconds()
+        
+        # Round if needed
+        if round_to_int:
+            total_seconds = int(round(total_seconds))
+    
+    except AttributeError:
+        # Occurs if subtraction works, but result is not a datetime object (i.e. doesn't have '.total_seconds')
+        pass
+    
+    except TypeError:
+        # Occurs if start/end values cannot be subtracted from each other (e.g. strings were given)
+        pass
+            
+    return total_seconds
 
 # .....................................................................................................................
 
@@ -328,6 +377,28 @@ def get_utc_datetime_in_past(num_days_in_past):
 
 # .....................................................................................................................
 
+def get_utc_datetime_tomorrow(tomorrow_hours, tomorrow_minutes, tomorrow_seconds, tomorrow_microseconds = 0):
+    
+    '''
+    Helper function for getting a (utc) datetime tomorrow, at a target time
+    Mostly intended for scheduling future events
+    Returns a datetime object
+    '''
+    
+    # Get current datetime & add 1 day to get a datetime from 'tomorrow'
+    current_utc_dt = get_utc_datetime()
+    future_utc_dt = current_utc_dt + dt.timedelta(days = 1)
+    
+    # Replace the hour/minute/second values from the future datetime to get the target datetime for tomorrow
+    tomorrow_utc_dt = future_utc_dt.replace(hour = tomorrow_hours,
+                                            minute = tomorrow_minutes,
+                                            second = tomorrow_seconds,
+                                            microsecond = tomorrow_microseconds)
+    
+    return tomorrow_utc_dt
+
+# .....................................................................................................................
+
 def get_local_datetime_in_past(num_days_in_past):
     
     '''
@@ -346,17 +417,45 @@ def get_local_datetime_in_past(num_days_in_past):
 
 # .....................................................................................................................
 
-def add_days_to_datetime(input_datetime, num_days_to_add):
+def get_local_datetime_tomorrow(tomorrow_hours, tomorrow_minutes, tomorrow_seconds, tomorrow_microseconds = 0):
     
     '''
-    Helper function for offseting a datetime by a specified number of days. Can be negative!
+    Helper function for getting a (local) datetime tomorrow, at a target time
+    Mostly intended for scheduling future events
     Returns a datetime object
     '''
     
-    return input_datetime + dt.timedelta(days = num_days_to_add)
+    # Get current datetime & add 1 day to get a datetime from 'tomorrow'
+    current_dt = get_local_datetime()
+    future_dt = current_dt + dt.timedelta(days = 1)
+    
+    # Replace the hour/minute/second values from the future datetime to get the target datetime for tomorrow
+    tomorrow_dt = future_dt.replace(hour = tomorrow_hours,
+                                    minute = tomorrow_minutes,
+                                    second = tomorrow_seconds,
+                                    microsecond = tomorrow_microseconds)
+    
+    return tomorrow_dt
+
+# .....................................................................................................................
+
+def add_to_datetime(input_datetime, days = 0, hours = 0, minutes = 0, seconds = 0, microseconds = 0):
+    
+    '''
+    Helper function for offseting a datetime by a specified number of days/hours/mins/sec/us. Can be negative!
+    Intended to be used to helper caller avoid detailed datetime usage/importing
+    Returns a datetime object
+    '''
+    
+    return input_datetime + dt.timedelta(days = days,
+                                         hours = hours,
+                                         minutes = minutes,
+                                         seconds = seconds,
+                                         microseconds = microseconds)
 
 # .....................................................................................................................
 # .....................................................................................................................
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Image file formatting functions
