@@ -51,7 +51,6 @@ find_path_to_local()
 
 from time import perf_counter
 from shutil import rmtree
-from subprocess import check_output
 
 from local.lib.mongo_helpers import MCLIENT, check_mongo_connection
 from local.lib.mongo_helpers import remove_camera_entry, get_camera_names_list
@@ -104,13 +103,7 @@ def check_for_sanity(sanity_check):
 
 def check_git_version():
     
-    check_output(timeout=0.25)
-    
-    return
-
-# .....................................................................................................................
-
-def check_dbserver_version():
+    ''' Helper function used to generate versioning info to be displayed on main web page '''
     
     # Initialize output in case of errors
     is_valid = False
@@ -181,10 +174,10 @@ def root_page(request):
         cam_html_list += ["<h4>No camera data!</h4>"]
     
     # Add dbserver versioning info
-    version_is_valid, version_date_str, version_id_str = check_dbserver_version()
-    bad_version_entry = "<p>error getting dbserver version!</p>"
-    good_version_entry = "<p>dbserver version: {} ({})</p>".format(version_id_str, version_date_str)
-    dbserver_version_str = (good_version_entry if version_is_valid else bad_version_entry)
+    version_is_valid, version_date_str, version_id_str = check_git_version()
+    bad_version_entry = "<p>error getting version info!</p>"
+    good_version_entry = "<p>version: {} ({})</p>".format(version_id_str, version_date_str)
+    git_version_str = (good_version_entry if version_is_valid else bad_version_entry)
     
     # Finally build the full html string to output
     html_list = ["<!DOCTYPE html>",
@@ -196,7 +189,7 @@ def root_page(request):
                  "<body>",
                  indent_by_2("<h1><a href='/help'>Safety-cv-2 DB Server</a></h1>"),
                  *(indent_by_2(each_cam_str) for each_cam_str in cam_html_list),
-                 indent_by_2(dbserver_version_str),
+                 indent_by_2(git_version_str),
                  "</body>",
                  "</html>"]
     html_resp = "\n".join(html_list)
@@ -478,7 +471,7 @@ def build_misc_routes():
     [
      Route("/", root_page),
      Route("/is-alive", is_alive_check),
-     Route("/get-dbserver-version", get_dbserver_version),
+     Route("/get-version-info", get_dbserver_version),
      Route("/get-all-camera-names", get_all_camera_names),
      Route("/time/ems-to-isoformat/{epoch_ms:int}", time_epoch_ms_to_datetime_isoformat),
      Route("/time/isoformat-to-ems/{datetime_isoformat:str}", time_datetime_isoformat_to_epoch_ms),
