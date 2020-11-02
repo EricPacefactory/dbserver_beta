@@ -2,7 +2,7 @@
 #%% Base setup
 
 # Start with ubuntu-python base
-FROM pacefactory/scv2_ubuntupython_base:1.0.2
+FROM pacefactory/scv2_ubuntupython_base:1.0.3
 
 
 # -----------------------------------------------------------------------------
