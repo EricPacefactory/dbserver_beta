@@ -58,11 +58,11 @@ from local.lib.query_helpers import get_one_metadata, get_oldest_metadata, get_n
 from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_many_metadata_in_time_range
 from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
 
-from local.lib.response_helpers import no_data_response, bad_request_response
+from local.lib.response_helpers import no_data_response, bad_request_response, cors_files_response
 
 from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_background_image_pathing
 
-from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse
+from starlette.responses import UJSONResponse, PlainTextResponse
 from starlette.routing import Route
 
 
@@ -92,7 +92,7 @@ def bg_get_newest_image(request):
         error_message = "No image at {}".format(newest_ems)
         return no_data_response(error_message)
     
-    return FileResponse(image_load_path)
+    return cors_files_response(image_load_path)
 
 # .....................................................................................................................
 
@@ -108,7 +108,7 @@ def bg_get_one_image(request):
         error_message = "No image at {}".format(target_ems)
         return bad_request_response(error_message)
     
-    return FileResponse(image_load_path)
+    return cors_files_response(image_load_path)
 
 # .....................................................................................................................
 
@@ -135,7 +135,7 @@ def bg_get_active_image(request):
         error_message = "No image at {}".format(active_ems)
         return bad_request_response(error_message)
     
-    return FileResponse(image_load_path)
+    return cors_files_response(image_load_path)
 
 # .....................................................................................................................
 

@@ -61,11 +61,11 @@ from local.lib.query_helpers import get_many_metadata_in_time_range
 from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_in_time_range
 from local.lib.query_helpers import get_closest_metadata_before_target_ems, get_closest_metadata_after_target_ems
 
-from local.lib.response_helpers import no_data_response, bad_request_response
+from local.lib.response_helpers import no_data_response, bad_request_response, cors_files_response
 from local.lib.query_helpers import first_of_query
 from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_snapshot_image_pathing
 
-from starlette.responses import FileResponse, UJSONResponse, PlainTextResponse, StreamingResponse
+from starlette.responses import UJSONResponse, PlainTextResponse, StreamingResponse
 from starlette.routing import Route
 
 from pymongo import ASCENDING, DESCENDING
@@ -97,7 +97,7 @@ def snap_get_newest_image(request):
         error_message = "No image at {}".format(newest_ems)
         return no_data_response(error_message)
     
-    return FileResponse(image_load_path)
+    return cors_files_response(image_load_path)
 
 # .....................................................................................................................
 
@@ -113,7 +113,7 @@ def snap_get_one_image(request):
         error_message = "No image at {}".format(target_ems)
         return bad_request_response(error_message)
     
-    return FileResponse(image_load_path)
+    return cors_files_response(image_load_path)
 
 # .....................................................................................................................
 

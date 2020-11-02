@@ -54,7 +54,7 @@ import ujson
 
 from pymongo.errors import ServerSelectionTimeoutError, AutoReconnect
 
-from starlette.responses import UJSONResponse
+from starlette.responses import UJSONResponse, FileResponse
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_405_METHOD_NOT_ALLOWED
 
 
@@ -96,6 +96,14 @@ def not_allowed_response(error_message, additional_response_dict = None):
         response_dict.update(additional_response_dict)
         
     return UJSONResponse(response_dict, status_code = HTTP_405_METHOD_NOT_ALLOWED)
+
+# .....................................................................................................................
+
+def cors_files_response(file_load_path):
+    
+    ''' Helper function which provides a file response with headers for CORs-compatibility '''
+    
+    return FileResponse(file_load_path, headers = {"Access-Control-Allow-Origin": "*"})
 
 # .....................................................................................................................
 
