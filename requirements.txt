@@ -9,8 +9,9 @@ aiofiles==0.*
 # Library used for efficient JSON-based server responses
 ujson==1.*
 
-# Library for GET/POST requests
+# Library for GET/POST & websocket requests
 requests==2.*
+websockets==8.*
 
 # Library to talk with mongoDB
 pymongo==3.*
