@@ -132,7 +132,7 @@ def get_env_upper_max_disk_usage_pct():
 # .....................................................................................................................
 
 def get_default_max_disk_usage_pct():
-    return int(os.environ.get("MAX_DISK_USAGE_PCT", 70))
+    return int(os.environ.get("MAX_DISK_USAGE_PCT", 50))
 
 # .....................................................................................................................
 
