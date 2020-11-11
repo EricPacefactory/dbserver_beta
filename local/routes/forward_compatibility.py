@@ -55,7 +55,7 @@ from shutil import rmtree as sh_remove_recursively
 from local.lib.mongo_helpers import MCLIENT, get_camera_names_list, get_collection_names_list, remove_camera_collection
 from local.lib.response_helpers import no_data_response
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 
@@ -193,7 +193,7 @@ def info_route(request):
                 }
     }
     
-    return UJSONResponse(info_msg)
+    return JSONResponse(info_msg)
 
 # .....................................................................................................................
 
@@ -255,7 +255,7 @@ def oct_26_2020_route(request):
     no_cameras_to_move = (len(camera_folder_paths_list) == 0)
     if no_cameras_to_move:
         warning_message = {"warning": "No camera folders found to move! Update may already be complete"}
-        return UJSONResponse(warning_message)
+        return JSONResponse(warning_message)
     
     try:
         
@@ -272,7 +272,7 @@ def oct_26_2020_route(request):
     except Exception as err:
         return_result = {"success": False, "error": str(err)}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -312,7 +312,7 @@ def oct_28_2020_route(request):
     # Bundle results for feedback
     return_result = {"success": True, "collections_removed": collections_removed_dict}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

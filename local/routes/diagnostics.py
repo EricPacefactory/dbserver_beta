@@ -60,7 +60,7 @@ from local.lib.response_helpers import calculate_time_taken_ms
 
 from local.lib.data_deletion import get_disk_usage
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 
@@ -91,7 +91,7 @@ def get_connections_info(request):
     time_taken_ms = calculate_time_taken_ms(t_start, t_end)
     return_result["time_taken_ms"] = time_taken_ms
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -137,7 +137,7 @@ def get_index_tree(request):
     time_taken_ms = calculate_time_taken_ms(t_start, t_end)
     indices_tree["time_taken_ms"] = time_taken_ms
     
-    return UJSONResponse(indices_tree)
+    return JSONResponse(indices_tree)
 
 # .....................................................................................................................
 
@@ -158,7 +158,7 @@ def get_memory_usage(request):
     command_bin_path = which(mem_cmd)
     if command_bin_path is None:
         return_result = {"error": "Memory-check program ({}) is not present!".format(mem_cmd)}
-        return UJSONResponse(return_result)
+        return JSONResponse(return_result)
     
     # Initialize outputs, in case this fails
     ram_bytes_dict = "error"
@@ -203,7 +203,7 @@ def get_memory_usage(request):
                      "ram_percent_usage": ram_percent_usage,
                      "time_taken_ms": time_taken_ms}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -229,7 +229,7 @@ def get_disk_usage_for_images(request):
                      "note": "Usage for drive containing file system data only! May not account for metadata storage",
                      "time_taken_ms": time_taken_ms}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -271,7 +271,7 @@ def get_metadata_bytes_per_camera(request):
                      "total_bytes": total_size_on_disk_bytes,
                      "time_taken_ms": time_taken_ms}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -310,7 +310,7 @@ def get_document_count_tree(request):
     time_taken_ms = calculate_time_taken_ms(t_start, t_end)
     doc_count_tree["time_taken_ms"] = time_taken_ms
     
-    return UJSONResponse(doc_count_tree)
+    return JSONResponse(doc_count_tree)
 
 # .....................................................................................................................
 # .....................................................................................................................

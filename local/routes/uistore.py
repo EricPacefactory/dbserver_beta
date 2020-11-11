@@ -60,7 +60,7 @@ from local.lib.query_helpers import get_one_metadata, get_all_ids, get_newest_me
 from local.lib.response_helpers import post_success_response, bad_request_response
 from local.lib.response_helpers import not_allowed_response, no_data_response
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from pymongo import ASCENDING
@@ -113,7 +113,7 @@ def uistore_info(request):
     info_dict = {"info": msg_list,
                  "indexes": KEYS_TO_INDEX}
     
-    return UJSONResponse(info_dict)
+    return JSONResponse(info_dict)
 
 # .....................................................................................................................
 
@@ -138,7 +138,7 @@ def uistore_get_all_store_types(request):
         store_type_only = each_collection_name[remove_prefix_idx:]
         uistore_types_list.append(store_type_only)
     
-    return UJSONResponse(uistore_types_list)
+    return JSONResponse(uistore_types_list)
 
 # .....................................................................................................................
 
@@ -170,7 +170,7 @@ def uistore_all_cameras_get_all_store_types(request):
         # Store final result for each camera
         aggregate_results_dict[each_camera_name] = one_camera_uistore_types_list
     
-    return UJSONResponse(aggregate_results_dict)
+    return JSONResponse(aggregate_results_dict)
 
 # .....................................................................................................................
 
@@ -248,7 +248,7 @@ async def uistore_update_one_metadata_by_id(request):
     collection_ref = get_uistore_collection(camera_select, store_type)
     update_response = collection_ref.update_one(filter_dict, update_data_dict, upsert = True)
     
-    return UJSONResponse(update_response)
+    return JSONResponse(update_response)
 
 # .....................................................................................................................
 
@@ -267,7 +267,7 @@ def uistore_get_example_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -287,7 +287,7 @@ def uistore_get_one_metadata_by_id(request):
         error_message = "No metadata for id {}".format(entry_id)
         return bad_request_response(error_message)
     
-    return UJSONResponse(query_result)
+    return JSONResponse(query_result)
 
 # .....................................................................................................................
 
@@ -306,7 +306,7 @@ def uistore_get_many_metadata_by_end_time_range(request):
     # Convert to dictionary, with entry ids as keys
     return_result = {each_result[ENTRY_ID_FIELD]: each_result for each_result in query_result}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -332,7 +332,7 @@ def uistore_all_cameras_get_many_metadata_by_end_time_range(request):
         one_camera_result = {each_result[ENTRY_ID_FIELD]: each_result for each_result in query_result}
         aggregate_results_dict[each_camera_name] = one_camera_result
     
-    return UJSONResponse(aggregate_results_dict)
+    return JSONResponse(aggregate_results_dict)
 
 # .....................................................................................................................
 
@@ -349,7 +349,7 @@ def uistore_get_all_ids_list(request):
     # Pull out the entry IDs into a list, instead of returning a list of dictionaries
     return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -368,7 +368,7 @@ def uistore_get_ids_list_by_end_time_range(request):
     # Pull out the entry IDs into a list, instead of returning a list of dictionaries
     return_result = [each_entry[ENTRY_ID_FIELD] for each_entry in query_result]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -396,7 +396,7 @@ def uistore_all_cameras_get_ids_list_by_end_time_range(request):
         
         print(each_camera_name, one_camera_result)
     
-    return UJSONResponse(aggregate_results_dict)
+    return JSONResponse(aggregate_results_dict)
 
 # .....................................................................................................................
 
@@ -423,7 +423,7 @@ def uistore_delete_one_metadata_by_id(request):
     return_result = {"time_taken_ms": time_taken_ms,
                      "mongo_response": delete_response}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -451,7 +451,7 @@ def uistore_delete_many_metadata_by_end_time_range(request):
     return_result = {"time_taken_ms": time_taken_ms,
                      "mongo_response": delete_response}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -474,7 +474,7 @@ def uistore_set_indexing(request):
     indexes_already_set = check_collection_indexing(collection_ref, KEYS_TO_INDEX)
     if indexes_already_set:
         return_result = {"already_set": True, "indexes": KEYS_TO_INDEX}
-        return UJSONResponse(return_result)
+        return JSONResponse(return_result)
     
     # Set indexes on target fields if we haven't already
     mongo_response_list = set_collection_indexing(collection_ref, KEYS_TO_INDEX)
@@ -488,7 +488,7 @@ def uistore_set_indexing(request):
                      "time_taken_ms": time_taken_ms,
                      "mongo_response_list": mongo_response_list}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

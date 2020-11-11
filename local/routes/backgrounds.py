@@ -62,7 +62,7 @@ from local.lib.response_helpers import no_data_response, bad_request_response, c
 
 from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_background_image_pathing
 
-from starlette.responses import UJSONResponse, PlainTextResponse
+from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Route
 
 
@@ -180,7 +180,7 @@ def bg_get_newest_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -205,7 +205,7 @@ def bg_get_bounding_times(request):
                      "min_datetime_isoformat": oldest_metadata_dict["datetime_isoformat"],
                      "max_datetime_isoformat": newest_metadata_dict["datetime_isoformat"]}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -230,7 +230,7 @@ def bg_get_epochs_by_time_range(request):
     epoch_ms_list = [] if no_older_entry else [active_entry[EPOCH_MS_FIELD]]
     epoch_ms_list += range_epoch_ms_list
     
-    return UJSONResponse(epoch_ms_list)
+    return JSONResponse(epoch_ms_list)
 
 # .....................................................................................................................
 
@@ -254,7 +254,7 @@ def bg_get_active_metadata(request):
         error_message = "No metadata before time {}".format(target_ems)
         return no_data_response(error_message)
     
-    return UJSONResponse(entry_dict)
+    return JSONResponse(entry_dict)
 
 # .....................................................................................................................
 
@@ -273,7 +273,7 @@ def bg_get_one_metadata(request):
         error_message = "No metadata at {}".format(target_ems)
         return bad_request_response(error_message)
     
-    return UJSONResponse(query_result)
+    return JSONResponse(query_result)
 
 # .....................................................................................................................
 
@@ -298,7 +298,7 @@ def bg_get_many_metadata(request):
     return_result = [] if no_older_entry else [active_entry]
     return_result += list(range_query_result)
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -328,7 +328,7 @@ def bg_count_by_time_range(request):
     # Build output
     return_result = {"count": total_count}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

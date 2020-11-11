@@ -62,7 +62,7 @@ from local.lib.timekeeper_utils import epoch_ms_to_local_isoformat, isoformat_to
 from local.lib.pathing import BASE_DATA_FOLDER_PATH, BASE_CAMERAS_FOLDER_PATH, GIT_READER, build_camera_data_path
 from local.lib.response_helpers import bad_request_response, not_allowed_response, calculate_time_taken_ms
 
-from starlette.responses import UJSONResponse, HTMLResponse
+from starlette.responses import JSONResponse, HTMLResponse
 from starlette.routing import Route
 
 
@@ -204,7 +204,7 @@ def is_alive_check(request):
     
     mongo_is_connected, server_info_dict = check_mongo_connection(MCLIENT)
     
-    return UJSONResponse({"dbserver": True, "mongo": mongo_is_connected})
+    return JSONResponse({"dbserver": True, "mongo": mongo_is_connected})
 
 # .....................................................................................................................
 
@@ -227,7 +227,7 @@ def get_dbserver_version(request):
                      "tags_list": commit_tags_list,
                      "commit_datetime_isoformat": isoformat_datetime}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -237,7 +237,7 @@ def get_all_camera_names(request):
     
     camera_names_list = get_camera_names_list(MCLIENT)
     
-    return UJSONResponse(camera_names_list)
+    return JSONResponse(camera_names_list)
 
 # .....................................................................................................................
 
@@ -256,7 +256,7 @@ def time_epoch_ms_to_datetime_isoformat(request):
         error_message = "Epoch ms value was too large!"
         return bad_request_response(error_message)
     
-    return UJSONResponse(datetime_isoformat_str)
+    return JSONResponse(datetime_isoformat_str)
 
 # .....................................................................................................................
 
@@ -281,7 +281,7 @@ def time_datetime_isoformat_to_epoch_ms(request):
                          "    Got: {}".format(datetime_isoformat_str)]
         return bad_request_response(error_message)
     
-    return UJSONResponse(epoch_ms)
+    return JSONResponse(epoch_ms)
 
 # .....................................................................................................................
 
@@ -334,7 +334,7 @@ def remove_one_camera(request):
                      "camera_exists_after": camera_exists_after,
                      "time_taken_ms": time_taken_ms}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -372,7 +372,7 @@ def remove_all_cameras(request):
                      "cameras_removed": cameras_removed_list,
                      "time_taken_ms": time_taken_ms}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

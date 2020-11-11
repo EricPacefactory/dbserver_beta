@@ -61,7 +61,7 @@ from local.lib.data_deletion import get_oldest_snapshot_dt, delete_by_disk_usage
 
 from local.lib.response_helpers import not_allowed_response
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 
@@ -95,7 +95,7 @@ def autodelete_check_system_logs(request):
         each_log_file_name, _ = os.path.splitext(os.path.basename(each_log_file_path))
         log_files_dict[each_log_file_name] = full_log_file_str.splitlines()
     
-    return UJSONResponse(log_files_dict)
+    return JSONResponse(log_files_dict)
 
 # .....................................................................................................................
 
@@ -112,7 +112,7 @@ def autodelete_get_settings(request):
                        "days_to_keep": days_to_keep,
                        "max_disk_usage_pct": max_disk_usage_pct}
     
-    return UJSONResponse(return_response)
+    return JSONResponse(return_response)
 
 # .....................................................................................................................
 
@@ -137,7 +137,7 @@ def autodelete_set_max_disk_usage_pct(request):
                      "note": ["New setting will not take effect until next scheduled deletion (tomorrow morning)",
                               "- Use the 'delete by disk usage' url to force an immediate deletion if needed"]}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -161,7 +161,7 @@ def autodelete_set_days_to_keep(request):
                      "note": ["New setting will not take effect until next scheduled deletion (tomorrow morning)",
                               "- Use the 'delete by days to keep' url to force an immediate deletion if needed"]}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -203,7 +203,7 @@ def autodelete_manual_delete_by_disk_usage(request):
                      "percent_usage": current_disk_usage_pct,
                      "time_taken_ms": time_taken_ms}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -245,7 +245,7 @@ def autodelete_manual_delete_by_days_to_keep(request):
                      "percent_usage": current_disk_usage_pct,
                      "time_taken_ms": time_taken_ms}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

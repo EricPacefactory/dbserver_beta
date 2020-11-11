@@ -65,7 +65,7 @@ from local.lib.response_helpers import no_data_response, bad_request_response, c
 from local.lib.query_helpers import first_of_query
 from local.lib.pathing import BASE_DATA_FOLDER_PATH, build_snapshot_image_pathing
 
-from starlette.responses import UJSONResponse, PlainTextResponse, StreamingResponse
+from starlette.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from starlette.routing import Route
 
 from pymongo import ASCENDING, DESCENDING
@@ -192,7 +192,7 @@ def snap_get_newest_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -217,7 +217,7 @@ def snap_get_bounding_times(request):
                      "min_datetime_isoformat": oldest_metadata_dict["datetime_isoformat"],
                      "max_datetime_isoformat": newest_metadata_dict["datetime_isoformat"]}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -265,7 +265,7 @@ def snap_get_closest_epoch_by_time(request):
                      "lower_bound_epoch_ms": lower_ems,
                      "closest_epoch_ms": closest_ems}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -283,7 +283,7 @@ def snap_get_epochs_by_time_range(request):
     collection_ref = get_snapshot_collection(camera_select)
     epoch_ms_list = get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
-    return UJSONResponse(epoch_ms_list)
+    return JSONResponse(epoch_ms_list)
 
 # .....................................................................................................................
 
@@ -314,7 +314,7 @@ def snap_get_closest_metadata_by_time(request):
     # If we get here we probably have data so return the document data except for the id
     return_result = first_entry["doc"]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -336,7 +336,7 @@ def snap_get_previous_metadata_by_time(request):
         error_message = "No metadata before time {}".format(target_ems)
         return no_data_response(error_message)
     
-    return UJSONResponse(entry_dict)
+    return JSONResponse(entry_dict)
 
 # .....................................................................................................................
 
@@ -358,7 +358,7 @@ def snap_get_next_metadata_by_time(request):
         error_message = "No metadata after time {}".format(target_ems)
         return no_data_response(error_message)
     
-    return UJSONResponse(entry_dict)
+    return JSONResponse(entry_dict)
 
 # .....................................................................................................................
 
@@ -377,7 +377,7 @@ def snap_get_one_metadata(request):
         error_message = "No metadata at {}".format(target_ems)
         return bad_request_response(error_message)
     
-    return UJSONResponse(query_result)
+    return JSONResponse(query_result)
 
 # .....................................................................................................................
 
@@ -395,7 +395,7 @@ def snap_get_many_metadata(request):
     collection_ref = get_snapshot_collection(camera_select)
     query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
-    return UJSONResponse(list(query_result))
+    return JSONResponse(list(query_result))
 
 # .....................................................................................................................
 
@@ -409,7 +409,7 @@ def snap_get_many_metadata_n_samples(request):
     
     # Handle zero/negative sample cases
     if n_samples < 1:
-        return UJSONResponse([])
+        return JSONResponse([])
     
     # Convert start/end times to ems values
     start_ems, end_ems = start_end_times_to_epoch_ms(start_time, end_time)
@@ -424,19 +424,19 @@ def snap_get_many_metadata_n_samples(request):
     
     # Handle cases where there are fewer (or equal) results than the number of samples requested
     if num_samples_total <= n_samples:
-        return UJSONResponse(result_list)
+        return JSONResponse(result_list)
     
     # Handle special case where only 1 sample is requested. We'll grab the middle one
     if n_samples == 1:
         middle_idx = int(num_samples_total / 2)
         return_result = [result_list[middle_idx]]
-        return UJSONResponse(return_result)
+        return JSONResponse(return_result)
     
     # Pick out n-samples from the result
     step_factor = (num_samples_total - 1) / (n_samples - 1)
     return_result = [result_list[int(round(k * step_factor))] for k in range(n_samples)]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -465,7 +465,7 @@ def snap_get_many_metadata_skip_n_subsample(request):
     
     # Handle cases with only 0, 1 or 2 entries (where we can't meaningfully skip samples)
     if num_samples_total < 3:
-        return UJSONResponse(result_list)
+        return JSONResponse(result_list)
     
     # If we have data, figure out the best first-index offset, so we evenly place the subsamples
     # For example, given a list: [1,2,3,4,5,6,7,8,9], skip 3
@@ -475,7 +475,7 @@ def snap_get_many_metadata_skip_n_subsample(request):
     first_index_offset = int((num_samples_total - subsample_extent) / 2)
     subsampled_list = result_list[first_index_offset::nth_subsample]
     
-    return UJSONResponse(subsampled_list)
+    return JSONResponse(subsampled_list)
 
 # .....................................................................................................................
 
@@ -496,7 +496,7 @@ def snap_count_by_time_range(request):
     # Convert to dictionary with count
     return_result = {"count": int(query_result)}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

@@ -63,7 +63,7 @@ from local.lib.query_helpers import get_many_metadata_in_time_range, get_epoch_m
 from local.lib.response_helpers import post_success_response, bad_request_response
 from local.lib.response_helpers import not_allowed_response, no_data_response
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 
@@ -96,7 +96,7 @@ def uiconfig_info(request):
     
     info_dict = {"info": msg_list}
     
-    return UJSONResponse(info_dict)
+    return JSONResponse(info_dict)
 
 # .....................................................................................................................
 
@@ -149,7 +149,7 @@ def uiconfig_get_newest_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
     
@@ -167,7 +167,7 @@ def uiconfig_get_oldest_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -186,7 +186,7 @@ def uiconfig_get_one_metadata_by_ems(request):
         error_message = "No metadata at {}".format(target_ems)
         return bad_request_response(error_message)
     
-    return UJSONResponse(query_result)
+    return JSONResponse(query_result)
 
 # .....................................................................................................................
 
@@ -204,7 +204,7 @@ def uiconfig_get_many_metadata_by_time_range(request):
     collection_ref = get_uiconfig_collection(camera_select)
     query_result = get_many_metadata_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
-    return UJSONResponse(list(query_result))
+    return JSONResponse(list(query_result))
 
 # .....................................................................................................................
 
@@ -220,7 +220,7 @@ def uiconfig_get_all_ems_list(request):
     # Pull out the entry IDs into a list, instead of returning a list of dictionaries
     return_result = [each_entry[EPOCH_MS_FIELD] for each_entry in query_result]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -238,7 +238,7 @@ def uiconfig_get_ems_list_by_time_range(request):
     collection_ref = get_uiconfig_collection(camera_select)
     epoch_ms_list = get_epoch_ms_list_in_time_range(collection_ref, start_ems, end_ems, EPOCH_MS_FIELD)
     
-    return UJSONResponse(epoch_ms_list)
+    return JSONResponse(epoch_ms_list)
 
 # .....................................................................................................................
 
@@ -259,7 +259,7 @@ def uiconfig_count_by_time_range(request):
     # Convert to dictionary with count
     return_result = {"count": int(query_result)}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -298,7 +298,7 @@ async def uiconfig_update_one_metadata_by_ems(request):
     collection_ref = get_uiconfig_collection(camera_select)
     update_response = collection_ref.update_one(filter_dict, update_data_dict, upsert = False)
     
-    return UJSONResponse(update_response)
+    return JSONResponse(update_response)
 
 # .....................................................................................................................
 
@@ -324,7 +324,7 @@ def uiconfig_delete_one_metadata_by_ems(request):
     return_result = {"time_taken_ms": time_taken_ms,
                      "mongo_response": delete_response}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -354,7 +354,7 @@ def uiconfig_delete_many_metadata_by_time_range(request):
     return_result = {"time_taken_ms": time_taken_ms,
                      "mongo_response": delete_response}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

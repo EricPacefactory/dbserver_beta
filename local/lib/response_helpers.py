@@ -54,7 +54,7 @@ import ujson
 
 from pymongo.errors import ServerSelectionTimeoutError, AutoReconnect
 
-from starlette.responses import UJSONResponse, FileResponse
+from starlette.responses import JSONResponse, FileResponse
 from starlette.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_405_METHOD_NOT_ALLOWED
 
 
@@ -71,7 +71,7 @@ def no_data_response(error_message, additional_response_dict = None):
     if additional_response_dict is not None:
         response_dict.update(additional_response_dict)
     
-    return UJSONResponse({"error": error_message}, status_code = HTTP_404_NOT_FOUND)
+    return JSONResponse({"error": error_message}, status_code = HTTP_404_NOT_FOUND)
 
 # .....................................................................................................................
 
@@ -83,7 +83,7 @@ def bad_request_response(error_message, additional_response_dict = None):
     if additional_response_dict is not None:
         response_dict.update(additional_response_dict)
     
-    return UJSONResponse({"error": error_message}, status_code = HTTP_400_BAD_REQUEST)
+    return JSONResponse({"error": error_message}, status_code = HTTP_400_BAD_REQUEST)
 
 # .....................................................................................................................
 
@@ -95,7 +95,7 @@ def not_allowed_response(error_message, additional_response_dict = None):
     if additional_response_dict is not None:
         response_dict.update(additional_response_dict)
         
-    return UJSONResponse(response_dict, status_code = HTTP_405_METHOD_NOT_ALLOWED)
+    return JSONResponse(response_dict, status_code = HTTP_405_METHOD_NOT_ALLOWED)
 
 # .....................................................................................................................
 
@@ -115,7 +115,7 @@ def post_success_response(success_message = True, additional_response_dict = Non
     if additional_response_dict is not None:
         response_dict.update(additional_response_dict)
         
-    return UJSONResponse(response_dict, status_code = HTTP_201_CREATED)
+    return JSONResponse(response_dict, status_code = HTTP_201_CREATED)
 
 # .....................................................................................................................
 # .....................................................................................................................

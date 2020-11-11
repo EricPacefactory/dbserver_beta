@@ -59,7 +59,7 @@ from local.lib.query_helpers import get_many_metadata_in_id_range
 
 from local.lib.response_helpers import bad_request_response, no_data_response
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from pymongo import ASCENDING, DESCENDING
@@ -128,7 +128,7 @@ def objects_get_newest_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -144,7 +144,7 @@ def objects_get_all_ids(request):
     # Pull out the ID into a list, instead of returning a list of dictionaries
     return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -162,7 +162,7 @@ def objects_get_ids_at_target_time(request):
     # Convert to list of ids only
     return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -183,7 +183,7 @@ def objects_get_ids_by_time_range(request):
     # Pull out the epoch values into a list, instead of returning a list of dictionaries
     return_result = [each_entry[OBJ_ID_FIELD] for each_entry in query_result]
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -202,7 +202,7 @@ def objects_get_one_metadata_by_id(request):
         error_message = "No object with id {}".format(object_full_id)
         return bad_request_response(error_message)
     
-    return UJSONResponse(query_result)
+    return JSONResponse(query_result)
 
 # .....................................................................................................................
 
@@ -220,7 +220,7 @@ def objects_get_many_metadata_by_id_range(request):
     collection_ref = get_object_collection(camera_select)
     query_result = get_many_metadata_in_id_range(collection_ref, start_obj_id, end_obj_id)
     
-    return UJSONResponse(query_result)
+    return JSONResponse(query_result)
 
 # .....................................................................................................................
 
@@ -238,7 +238,7 @@ def objects_get_many_metadata_at_target_time(request):
     # Convert to dictionary, with object ids as keys
     return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -259,7 +259,7 @@ def objects_get_many_metadata_by_time_range(request):
     # Convert to dictionary, with object ids as keys
     return_result = {each_result[OBJ_ID_FIELD]: each_result for each_result in query_result}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -281,7 +281,7 @@ def objects_count_at_target_time(request):
     # Convert to dictionary with count
     return_result = {"count": int(query_result)}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -306,7 +306,7 @@ def objects_count_by_time_range(request):
     # Convert to dictionary with count
     return_result = {"count": int(query_result)}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -328,7 +328,7 @@ def objects_set_indexing(request):
     indexes_already_set = check_collection_indexing(collection_ref, KEYS_TO_INDEX)
     if indexes_already_set:
         return_result = {"already_set": True, "indexes": KEYS_TO_INDEX}
-        return UJSONResponse(return_result)
+        return JSONResponse(return_result)
     
     # Set indexes on target fields if we haven't already
     mongo_response_list = set_collection_indexing(collection_ref, KEYS_TO_INDEX)
@@ -342,7 +342,7 @@ def objects_set_indexing(request):
                      "time_taken_ms": time_taken_ms,
                      "mongo_response_list": mongo_response_list}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

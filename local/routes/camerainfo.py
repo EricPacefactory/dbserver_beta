@@ -58,7 +58,7 @@ from local.lib.query_helpers import get_epoch_ms_list_in_time_range, get_count_i
 
 from local.lib.response_helpers import no_data_response
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 
@@ -86,7 +86,7 @@ def caminfo_get_oldest_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -111,7 +111,7 @@ def caminfo_get_newest_metadata(request):
         error_message = "No metadata for {}".format(camera_select)
         return no_data_response(error_message)
     
-    return UJSONResponse(metadata_dict)
+    return JSONResponse(metadata_dict)
 
 # .....................................................................................................................
 
@@ -135,7 +135,7 @@ def caminfo_get_active_metadata(request):
         error_message = "No metadata before time {}".format(target_ems)
         return no_data_response(error_message)
     
-    return UJSONResponse(entry_dict)
+    return JSONResponse(entry_dict)
 
 # .....................................................................................................................
 
@@ -169,7 +169,7 @@ def caminfo_get_many_metadata(request):
     return_result = [] if no_older_entry else [active_entry]
     return_result += list(range_query_result)
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 
@@ -215,7 +215,7 @@ def caminfo_get_ems_list_by_time_range(request):
     if next_entry_exists:
         output_start_ems_list += [end_ems]
     
-    return UJSONResponse(output_start_ems_list)
+    return JSONResponse(output_start_ems_list)
 
 # .....................................................................................................................
 
@@ -245,7 +245,7 @@ def caminfo_count_by_time_range(request):
     # Build output
     return_result = {"count": total_count}
     
-    return UJSONResponse(return_result)
+    return JSONResponse(return_result)
 
 # .....................................................................................................................
 # .....................................................................................................................

@@ -1,7 +1,7 @@
 
 # ASGI server + fast web framework
 uvicorn==0.*
-starlette==0.*
+starlette==0.14.*
 
 # Library needed for file-based server responses
 aiofiles==0.*

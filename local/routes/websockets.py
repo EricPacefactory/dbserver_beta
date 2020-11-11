@@ -74,7 +74,7 @@ from local.routes.stations import STN_ID_FIELD
 from local.routes.stations import find_by_time_range as find_stns_by_time_range
 from local.routes.stations import get_station_collection
 
-from starlette.responses import UJSONResponse
+from starlette.responses import JSONResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 
@@ -97,7 +97,7 @@ def websocket_route_info(request):
     
     info_dict = {"info": msg_list}
     
-    return UJSONResponse(info_dict)
+    return JSONResponse(info_dict)
 
 # .....................................................................................................................
 
