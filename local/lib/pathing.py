@@ -80,12 +80,12 @@ def build_base_data_folder_path(*, error_if_using_dropbox = True):
     if data_folder_path is None:
         this_script_folder_path = os.path.dirname(os.path.abspath(__file__))
         project_root_folder = os.path.dirname(os.path.dirname(this_script_folder_path))
-        data_folder_path = os.path.join(project_root_folder, "volume")
+        data_folder_path = os.path.join(project_root_folder, "volume", "data")
     
     # Avoid syncing 'persistent' data
     dropbox_in_path = ("dropbox" in data_folder_path.lower())
     if dropbox_in_path and error_if_using_dropbox:
-        raise EnvironmentError("Can't run dbserver from a dropbox folder!\n @ {}".format(__file__))
+        raise EnvironmentError("Can't run dbserver from a dropbox folder!\n @ {}".format(data_folder_path))
     
     # Make sure the folder exists
     os.makedirs(data_folder_path, exist_ok = True)
