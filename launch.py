@@ -29,6 +29,7 @@ from local.routes.backgrounds import build_background_routes
 from local.routes.objects import build_object_routes
 from local.routes.favorites import build_favorite_routes
 from local.routes.stations import build_station_routes
+from local.routes.svolabels import build_svolabel_routes
 from local.routes.snapshots import build_snapshot_routes
 from local.routes.websockets import build_websocket_routes
 from local.routes.autodelete import build_autodeleting_routes
@@ -65,8 +66,9 @@ def build_all_routes():
     all_routes_dict["Objects"] = build_object_routes()
     all_routes_dict["Favorites"] = build_favorite_routes()
     all_routes_dict["Stations"] = build_station_routes()
+    all_routes_dict["Supervised Object Labels"] = build_svolabel_routes()
     all_routes_dict["Websockets"] = build_websocket_routes()
-    all_routes_dict["POSTing"] = build_posting_routes()
+    all_routes_dict["Before Database POSTing"] = build_posting_routes()
     all_routes_dict["Autodelete"] = build_autodeleting_routes()
     all_routes_dict["Forward Compatibility"] = build_compatibility_routes()
     
