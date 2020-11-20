@@ -92,10 +92,11 @@ async def svolabels_create_new_entry(request):
         error_message = "Error posting data, missing required keys"
         return not_allowed_response(error_message, additional_response_dict)
     
-    # Get current timing to set ID
+    # Get current timing to set ID (also add explicit 'creation' field to indicate what the value actually means)
     current_local_dt = get_local_datetime()
     current_ems = datetime_to_epoch_ms(current_local_dt)
     post_data_json["_id"] = current_ems
+    post_data_json["creation_ems"] = post_data_json["_id"]
     
     # Figure out the bounding start/end times for the given objects, if not already provided
     has_bounding_start_ems = (BOUNDING_START_EMS_FIELD in post_data_json)
