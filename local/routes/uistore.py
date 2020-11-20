@@ -413,7 +413,10 @@ def uistore_delete_one_metadata_by_id(request):
     # Send deletion command to the db
     filter_dict = {ENTRY_ID_FIELD: entry_id}
     collection_ref = get_uistore_collection(camera_select, store_type)
-    delete_response = collection_ref.delete_one(filter_dict)
+    pymongo_DeleteResult = collection_ref.delete_one(filter_dict)
+    
+    # Get the number of deleted documents from the response (if possible!)
+    num_deleted = pymongo_DeleteResult.deleted_count
     
     # End timing
     t_end = perf_counter()
@@ -421,7 +424,7 @@ def uistore_delete_one_metadata_by_id(request):
     
     # Build output to provide feedback about deletion
     return_result = {"time_taken_ms": time_taken_ms,
-                     "mongo_response": delete_response}
+                     "num_deleted": num_deleted}
     
     return JSONResponse(return_result)
 
@@ -441,7 +444,10 @@ def uistore_delete_many_metadata_by_end_time_range(request):
     # Send deletion command to the db
     filter_dict = get_end_time_range_query_filter(low_end_ems, high_end_ems)
     collection_ref = get_uistore_collection(camera_select, store_type)
-    delete_response = collection_ref.delete_many(filter_dict)
+    pymongo_DeleteResult = collection_ref.delete_many(filter_dict)
+    
+    # Get the number of deleted documents from the response (if possible!)
+    num_deleted = pymongo_DeleteResult.deleted_count
     
     # End timing
     t_end = perf_counter()
@@ -449,7 +455,7 @@ def uistore_delete_many_metadata_by_end_time_range(request):
     
     # Build output to provide feedback about deletion
     return_result = {"time_taken_ms": time_taken_ms,
-                     "mongo_response": delete_response}
+                     "num_deleted": num_deleted}
     
     return JSONResponse(return_result)
 
