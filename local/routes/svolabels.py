@@ -65,6 +65,8 @@ from local.lib.response_helpers import post_success_response, not_allowed_respon
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
+from local.routes.objects import get_object_collection, get_start_end_bounding_ems
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Create object routes
@@ -94,6 +96,29 @@ async def svolabels_create_new_entry(request):
     current_local_dt = get_local_datetime()
     current_ems = datetime_to_epoch_ms(current_local_dt)
     post_data_json["_id"] = current_ems
+    
+    # Figure out the bounding start/end times for the given objects, if not already provided
+    has_bounding_start_ems = (BOUNDING_START_EMS_FIELD in post_data_json)
+    has_bounding_end_ems = (BOUNDING_END_EMS_FIELD in post_data_json)
+    has_bounding_times = (has_bounding_start_ems and has_bounding_end_ems)
+    if not has_bounding_times:
+        try:
+            obj_collection_ref = get_object_collection(camera_select)
+            obj_ids_list = [int(each_id_str) for each_id_str in post_data_json["object_labels"].keys()]
+            bounding_start_ems, bounding_end_ems = get_start_end_bounding_ems(obj_collection_ref, obj_ids_list)
+        
+        except Exception as err:
+            # In case we run into an error, just record None for start/end times
+            bounding_start_ems = None
+            bounding_end_ems = None
+            print("",
+                  "ERROR ({})".format(COLLECTION_NAME),
+                  "Failed to find bounding start/end times",
+                  "", str(err), sep = "\n")
+        
+        # Add bounding times to the post data
+        post_data_json[BOUNDING_START_EMS_FIELD] = bounding_start_ems
+        post_data_json[BOUNDING_END_EMS_FIELD] = bounding_end_ems
     
     # Send metadata to mongo
     post_success, mongo_response = post_one_to_mongo(MCLIENT, camera_select, COLLECTION_NAME, post_data_json)
@@ -275,6 +300,8 @@ def build_svolabel_routes():
 
 # Hard-code (global!) variables used to indicate timing fields
 EPOCH_MS_FIELD = "_id"
+BOUNDING_START_EMS_FIELD = "first_epoch_ms"
+BOUNDING_END_EMS_FIELD = "final_epoch_ms"
 
 # Set name of collection, which determines url routing + storage on mongoDB
 COLLECTION_NAME = "svolabels"

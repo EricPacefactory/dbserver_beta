@@ -107,7 +107,49 @@ def find_by_time_range(collection_ref, start_ems, end_ems, *, return_ids_only, a
     return query_result
 
 # .....................................................................................................................
+
+def get_start_end_bounding_ems(collection_ref, object_ids_list):
+    
+    ''' Helper function used to find the start/end bounding times of a given list of object ids '''
+    
+    # Bail if there are no ids
+    if len(object_ids_list) == 0:
+        return None, None
+    
+    # Find the first valid object to use for the initial start/end ems values
+    sorted_id_list = sorted(object_ids_list)
+    for k, each_obj_id in enumerate(sorted_id_list):
+        first_obj_md = get_one_metadata(collection_ref, OBJ_ID_FIELD, each_obj_id)
+        if first_obj_md is not None:
+            break
+    
+    # Bail if we didn't get any valid object ids/metadata
+    if first_obj_md is None:
+        return None, None
+    
+    # Use the first object metadata to set the start ems (and a first guess at the end ems)
+    bounding_start_ems = first_obj_md[FIRST_EPOCH_MS_FIELD]
+    bounding_end_ems = first_obj_md[FINAL_EPOCH_MS_FIELD]
+    
+    # Loop through all remaining ids and record the largest end ems value
+    search_idx = (1 + k)
+    for each_obj_id in sorted_id_list[search_idx:]:
+        
+        # Skip bad object ids
+        each_obj_md = get_one_metadata(collection_ref, OBJ_ID_FIELD, each_obj_id)
+        if each_obj_md is None:
+            continue
+        
+        # Record the 'latest' end ems value that we find
+        each_end_ems = each_obj_md[FINAL_EPOCH_MS_FIELD]
+        if each_end_ems > bounding_end_ems:
+            bounding_end_ems = each_end_ems
+    
+    return bounding_start_ems, bounding_end_ems
+
 # .....................................................................................................................
+# .....................................................................................................................
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #%% Create object routes
